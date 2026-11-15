@@ -1,13 +1,13 @@
-// A plain top-down drawing of the match. It exists to make the netcode
-// visible while the real renderer is being built.
+// A plain top-down drawing of the match, used when the browser cannot
+// give us a 3D context at all.
 
-import { TileState, type View } from "./view";
-
-export const seatColours = ["#e8b04a", "#5fb3c9", "#d9604c", "#9ccf6a"];
+import { TileState, type View } from "../view";
+import { seatColours } from "../palette";
+import type { Stage } from "./stage";
 
 const TILE = 2;
 
-export function draw(context: CanvasRenderingContext2D, view: View) {
+function draw(context: CanvasRenderingContext2D, view: View) {
   const { width, height } = context.canvas;
   const grid = Math.round(Math.sqrt(view.tiles.length));
   const scale = width / ((grid + 2) * TILE);
@@ -70,4 +70,25 @@ export function draw(context: CanvasRenderingContext2D, view: View) {
       context.stroke();
     }
   });
+}
+
+export function createFlatStage(canvas: HTMLCanvasElement): Stage {
+  const context = canvas.getContext("2d")!;
+  let latest: View | null = null;
+  const resize = () => {
+    const side = Math.min(canvas.clientWidth, canvas.clientHeight) * devicePixelRatio;
+    canvas.width = side;
+    canvas.height = side;
+  };
+  resize();
+  return {
+    kind: "flat",
+    push(view) {
+      latest = view;
+    },
+    frame() {
+      if (latest) draw(context, latest);
+    },
+    resize,
+  };
 }

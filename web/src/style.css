@@ -12,27 +12,26 @@ body {
   margin: 0;
   min-height: 100vh;
   background: var(--ground);
+  overflow: hidden;
   color: var(--ink);
 }
 
-main {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  padding: 24px;
-  align-items: flex-start;
-}
-
 canvas {
-  width: min(720px, 100%);
-  aspect-ratio: 1;
-  background: #0d0f12;
-  border: 1px solid var(--line);
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
 }
 
 aside {
-  flex: 1 1 240px;
-  max-width: 320px;
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 260px;
+  padding: 14px 16px;
+  background: rgb(11 29 42 / 0.78);
+  border: 1px solid rgb(255 255 255 / 0.08);
 }
 
 h1 {

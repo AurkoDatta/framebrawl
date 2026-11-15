@@ -6,6 +6,9 @@ export interface Player {
   x: number;
   y: number;
   z: number;
+  vx: number;
+  vy: number;
+  vz: number;
   facing: number;
   inPlay: boolean;
   grounded: boolean;
@@ -13,12 +16,22 @@ export interface Player {
   stunned: boolean;
   strain: number;
   score: number;
+  shoveCooldown: number;
+  dashCooldown: number;
 }
 
 export interface Body {
   x: number;
   y: number;
   z: number;
+  qx: number;
+  qy: number;
+  qz: number;
+  qw: number;
+}
+
+export interface Prop extends Body {
+  round: boolean;
 }
 
 export const TileState = { solid: 0, cracking: 1, falling: 2, gone: 3 } as const;
@@ -42,7 +55,7 @@ export interface View {
   finished: boolean;
   players: Player[];
   tiles: Tile[];
-  props: Body[];
+  props: Prop[];
 }
 
 export function decodeView(raw: Float32Array, layout: ViewLayout): View {
@@ -50,6 +63,16 @@ export function decodeView(raw: Float32Array, layout: ViewLayout): View {
   const playerCount = at(3);
   const tileCount = at(4);
   const propCount = at(5);
+
+  const body = (start: number): Body => ({
+    x: at(start),
+    y: at(start + 1),
+    z: at(start + 2),
+    qx: at(start + 3),
+    qy: at(start + 4),
+    qz: at(start + 5),
+    qw: at(start + 6),
+  });
 
   let offset = layout.header;
   const players: Player[] = [];
@@ -59,6 +82,9 @@ export function decodeView(raw: Float32Array, layout: ViewLayout): View {
       x: at(offset),
       y: at(offset + 1),
       z: at(offset + 2),
+      vx: at(offset + 3),
+      vy: at(offset + 4),
+      vz: at(offset + 5),
       facing: at(offset + 6),
       inPlay: (flags & 1) !== 0,
       grounded: (flags & 2) !== 0,
@@ -66,15 +92,17 @@ export function decodeView(raw: Float32Array, layout: ViewLayout): View {
       stunned: (flags & 8) !== 0,
       strain: at(offset + 8),
       score: at(offset + 9),
+      shoveCooldown: at(offset + 10),
+      dashCooldown: at(offset + 11),
     });
   }
   const tiles: Tile[] = [];
   for (let i = 0; i < tileCount; i++, offset += layout.perTile) {
-    tiles.push({ state: at(offset), x: at(offset + 1), y: at(offset + 2), z: at(offset + 3) });
+    tiles.push({ state: at(offset), ...body(offset + 1) });
   }
-  const props: Body[] = [];
+  const props: Prop[] = [];
   for (let i = 0; i < propCount; i++, offset += layout.perProp) {
-    props.push({ x: at(offset), y: at(offset + 1), z: at(offset + 2) });
+    props.push({ round: at(offset) !== 0, ...body(offset + 1) });
   }
 
   return {

@@ -7,7 +7,9 @@ export type ToWorker =
 export type FromWorker =
   | { type: "ready"; layout: ViewLayout }
   | { type: "send"; reliable: boolean; bytes: Uint8Array }
-  | { type: "view"; view: Float32Array }
+  // `corrected` is set when a rollback changed the past since the last view,
+  // so the renderer knows a jump is a correction and not real motion.
+  | { type: "view"; view: Float32Array; corrected: boolean }
   | { type: "event"; event: GameEvent }
   | { type: "error"; message: string };
 

@@ -38,6 +38,7 @@ async function main() {
   const client = new NetClient();
   let buttons = 0;
   let aim = 0;
+  let corrected = false;
 
   const drainEvents = () => {
     for (;;) {
@@ -45,6 +46,7 @@ async function main() {
       if (!event) {
         return;
       }
+      corrected ||= event.kind === "rollback" || event.kind === "synced";
       post({ type: "event", event });
     }
   };
@@ -88,7 +90,8 @@ async function main() {
     if (ticked) {
       const view = client.view();
       if (view.length > 0) {
-        post({ type: "view", view }, [view.buffer]);
+        post({ type: "view", view, corrected }, [view.buffer]);
+        corrected = false;
       }
     }
   }, 2);

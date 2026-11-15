@@ -1,12 +1,13 @@
-import { draw, seatColours } from "./draw";
 import * as input from "./input";
+import { seatColours } from "./palette";
+import { createFlatStage } from "./render/flat";
+import { createScene } from "./render/scene";
+import type { Stage } from "./render/stage";
 import type { FromWorker, ToWorker, ViewLayout } from "./protocol";
 import { connect, type Transport } from "./transport";
 import { decodeView, type View } from "./view";
 
 const params = new URLSearchParams(location.search);
-const canvas = document.querySelector<HTMLCanvasElement>("#arena")!;
-const context = canvas.getContext("2d")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 const stats = document.querySelector<HTMLElement>("#stats")!;
 const scores = document.querySelector<HTMLElement>("#scores")!;
@@ -49,7 +50,46 @@ function showScores(view: View) {
   });
 }
 
+type ViewChoice = "webgpu" | "webgl" | "flat";
+
+// A canvas that has handed out one kind of context will not hand out
+// another, so every attempt gets a fresh element.
+function freshCanvas(): HTMLCanvasElement {
+  const old = document.querySelector<HTMLCanvasElement>("#arena")!;
+  const canvas = old.cloneNode() as HTMLCanvasElement;
+  old.replaceWith(canvas);
+  return canvas;
+}
+
+// The best view the browser can manage: WebGPU, then WebGL2, then a flat
+// drawing. `onLost` is called if the GPU device disappears mid-match.
+async function createStage(choice: ViewChoice, onLost: () => void): Promise<Stage> {
+  const steps: ViewChoice[] = ["webgpu", "webgl", "flat"];
+  for (const step of steps.slice(steps.indexOf(choice))) {
+    if (step === "flat") break;
+    try {
+      return await createScene(freshCanvas(), { forceWebGL: step === "webgl", onLost });
+    } catch (error) {
+      console.info(`${step} view unavailable:`, error);
+    }
+  }
+  return createFlatStage(freshCanvas());
+}
+
 async function start() {
+  const requested = params.get("view");
+  const first: ViewChoice = requested === "flat" || requested === "webgl" ? requested : "webgpu";
+  let stage: Stage | null = null;
+  const useStage = async (choice: ViewChoice) => {
+    stage = null;
+    // A lost WebGPU device is retried once on WebGL2, and after that the
+    // flat view, which needs no GPU.
+    stage = await createStage(choice, () => void useStage(choice === "webgpu" ? "webgl" : "flat"));
+    setStat("view", stage.kind);
+  };
+  await useStage(first);
+  window.addEventListener("resize", () => stage?.resize());
+
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
   const toWorker = (message: ToWorker, transfer: Transferable[] = []) =>
     worker.postMessage(message, transfer);
@@ -84,6 +124,7 @@ async function start() {
       case "view":
         if (layout) {
           latest = decodeView(data.view, layout);
+          stage?.push(latest, data.corrected, performance.now());
         }
         break;
       case "event":
@@ -103,9 +144,9 @@ async function start() {
 
   input.listen(window, () => toWorker({ type: "input", ...input.current() }));
 
-  const frame = () => {
+  const frame = (now: number) => {
+    stage?.frame(now);
     if (latest) {
-      draw(context, latest);
       showScores(latest);
       setStat("frame", latest.frame);
       setStat("confirmed", latest.confirmedFrame);
