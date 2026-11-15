@@ -14,7 +14,9 @@ docker compose up --build
 ```
 
 Then open http://localhost:8080. You are dropped into a match with three
-bots. WASD or the arrow keys run, Space jumps, J shoves, K dashes.
+bots. WASD or the arrow keys run, Space jumps, J shoves, K dashes. Each
+hit you take raises your strain, the bar under your score, and the next
+shove sends you further. N opens the netcode numbers, M mutes.
 
 To play against yourself or a friend on the same machine, open the same
 room in two windows: http://localhost:8080/?room=anything. A player who
@@ -35,13 +37,15 @@ FB_PUBLIC_IP=127.0.0.1,192.168.1.20 docker compose up --build
 ```
 
 Adding `?transport=websocket` to the URL forces the fallback in any
-browser.
+browser. The picture is drawn with WebGPU where the browser has it and
+WebGL2 where it does not; `?view=webgl` and `?view=flat` force the simpler
+ones.
 
 ## Status
 
-Work in progress. The netcode and the server are complete and tested; the
-page currently draws a plain top-down view. The 3D renderer and the
-Netcode Lab are next.
+Work in progress. The netcode, the server and the 3D view are in place
+and tested. The Netcode Lab, where you degrade the network and watch
+rollback cope, is next.
 
 - `crates/fb-sim`: the simulation. Fixed 60 Hz tick, rapier3d physics
   built for cross-platform determinism, two-byte inputs, a seeded PCG32, and
@@ -61,7 +65,8 @@ Netcode Lab are next.
 - `crates/fb-server`: the binary. HTTP, WebRTC on one UDP port, WebSocket
   fallback, rooms, replay storage.
 - `crates/fb-wasm`, `web/`: the browser side. The simulation runs in a
-  worker.
+  worker; the page draws it with three.js, interpolating between ticks
+  and fading rollback corrections in over a few frames.
 - `tests/e2e`: the cross-target determinism harness and browser tests
   against the real server.
 
