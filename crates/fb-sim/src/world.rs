@@ -1,6 +1,4 @@
 use rapier3d::prelude::*;
-use serde::{Deserialize, Serialize};
-
 use crate::canon::{Field, Fnv64, Sink};
 use crate::config::MatchConfig;
 use crate::heading::heading;
@@ -47,7 +45,7 @@ const CRACK_WARNING: u32 = 90;
 const CRACK_INTERVAL_START: u32 = 150;
 const CRACK_INTERVAL_MIN: u32 = 45;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TileState {
     Solid,
     /// Visibly cracked; turns loose at `falls_at`.
@@ -58,13 +56,13 @@ pub enum TileState {
     Gone,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct Tile {
     body: RigidBodyHandle,
     state: TileState,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct Player {
     body: RigidBodyHandle,
     collider: ColliderHandle,
@@ -108,7 +106,7 @@ pub struct BodyView {
 }
 
 /// rapier's step workspace. It holds no state that outlives a step, so a
-/// cloned or deserialized world starts with a fresh one.
+/// cloned world starts with a fresh one.
 #[derive(Default)]
 struct Workspace(PhysicsPipeline);
 
@@ -121,7 +119,7 @@ impl Clone for Workspace {
 }
 
 /// The complete simulation state. `Clone` is the rollback snapshot.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct World {
     config: MatchConfig,
     frame: u32,
@@ -142,7 +140,6 @@ pub struct World {
     multibody_joints: MultibodyJointSet,
     soft_bodies: SoftBodySet,
     ccd: CCDSolver,
-    #[serde(skip)]
     workspace: Workspace,
 }
 

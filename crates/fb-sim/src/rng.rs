@@ -1,10 +1,8 @@
-use serde::{Deserialize, Serialize};
-
 /// PCG32 (XSH-RR, 64-bit state, fixed stream).
 ///
 /// The only source of randomness in the simulation. Its state is part of
 /// the world, so a restored world draws the same numbers again.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Pcg32 {
     state: u64,
 }

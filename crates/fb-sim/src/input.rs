@@ -1,12 +1,10 @@
-use serde::{Deserialize, Serialize};
-
 /// One player's input for one frame: two bytes on the wire.
 ///
 /// `aim` is a heading in 1/256ths of a turn, counter-clockwise from +x when
 /// seen from above with +z towards the viewer. Everything a client can
 /// express is an integer, so there is nothing to round differently between
 /// machines.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Input {
     pub buttons: u8,
     pub aim: u8,

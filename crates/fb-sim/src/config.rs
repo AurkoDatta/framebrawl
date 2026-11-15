@@ -1,10 +1,8 @@
-use serde::{Deserialize, Serialize};
-
 pub const MAX_PLAYERS: usize = 4;
 
 /// Everything that distinguishes one match from another. Two worlds built
 /// from equal configs and fed equal inputs stay equal forever.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MatchConfig {
     pub seed: u64,
     pub players: u8,
