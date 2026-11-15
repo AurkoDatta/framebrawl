@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/AurkoDatta/framebrawl"
+
+[workspace.dependencies]
+# No simd-* and no parallel: both reorder float arithmetic between targets.
+rapier3d = { version = "=0.36.1", features = ["enhanced-determinism", "serde-serialize"] }
+serde = { version = "1", features = ["derive"] }
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
