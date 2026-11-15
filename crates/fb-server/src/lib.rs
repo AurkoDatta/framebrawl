@@ -7,6 +7,7 @@ mod rtc;
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
+use std::time::Duration;
 
 use fb_host::RoomOptions;
 use tokio::net::TcpListener;
@@ -24,6 +25,9 @@ pub struct ServerConfig {
     pub static_dir: Option<PathBuf>,
     pub data_dir: Option<PathBuf>,
     pub room: RoomOptions,
+    /// How long a seated player may send nothing before a bot takes the
+    /// seat back.
+    pub silence_limit: Duration,
 }
 
 pub struct Server {
@@ -38,7 +42,7 @@ impl Server {
     /// transport still works.
     pub async fn bind(config: ServerConfig) -> std::io::Result<Server> {
         let replays = replays::ReplayStore::new(config.data_dir.map(|dir| dir.join("replays")));
-        let rooms = rooms::Rooms::new(config.room, replays.clone());
+        let rooms = rooms::Rooms::new(config.room, config.silence_limit, replays.clone());
 
         let rtc = config.udp.and_then(|bind| {
             let candidates = config

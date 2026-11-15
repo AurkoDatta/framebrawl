@@ -23,6 +23,7 @@ async fn start(room: RoomOptions, data_dir: Option<PathBuf>) -> SocketAddr {
         static_dir: None,
         data_dir,
         room,
+        silence_limit: Duration::from_millis(500),
     })
     .await
     .expect("server binds");
@@ -260,4 +261,24 @@ async fn a_client_that_sends_garbage_is_dropped_and_the_room_survives() {
 
     let (status, _) = http_get(address, "/api/ws?room=not%20ok").await;
     assert_eq!(status, 400);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_that_goes_silent_loses_its_seat() {
+    let address = start(RoomOptions::default(), None).await;
+    let url = format!("ws://{address}/api/ws?room=quiet");
+    let (mut socket, _) = tokio_tungstenite::connect_async(&url)
+        .await
+        .expect("connects");
+    // Never send anything. The socket stays open from our side, so only
+    // the room's own timeout can end this.
+    let closed = tokio::time::timeout(Duration::from_secs(3), async {
+        while let Some(Ok(message)) = socket.next().await {
+            if message.is_close() {
+                break;
+            }
+        }
+    })
+    .await;
+    assert!(closed.is_ok(), "server gives the seat up");
 }

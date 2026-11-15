@@ -55,17 +55,20 @@ pub struct Rooms {
 struct Inner {
     rooms: Mutex<HashMap<String, RoomHandle>>,
     options: RoomOptions,
+    /// Ticks a seated player may go without sending anything.
+    silence_ticks: u32,
     replays: ReplayStore,
     runtime: tokio::runtime::Handle,
     created: AtomicU64,
 }
 
 impl Rooms {
-    pub fn new(options: RoomOptions, replays: ReplayStore) -> Self {
+    pub fn new(options: RoomOptions, silence_limit: Duration, replays: ReplayStore) -> Self {
         Rooms {
             inner: Arc::new(Inner {
                 rooms: Mutex::new(HashMap::new()),
                 options,
+                silence_ticks: (silence_limit.as_secs_f64() * f64::from(fb_sim::TICK_RATE)) as u32,
                 replays,
                 runtime: tokio::runtime::Handle::current(),
                 created: AtomicU64::new(0),
@@ -180,6 +183,10 @@ async fn run_room(
 ) {
     let mut room = Room::new(seed, rooms.inner.options);
     let mut peers: Vec<Option<mpsc::Sender<PeerMessage>>> = vec![None; room.players()];
+    // Ticks since each seat was last heard from. A transport can take many
+    // seconds to notice that a browser has gone; a client that is alive
+    // sends every tick.
+    let mut silent = vec![0u32; room.players()];
     let mut out: Vec<Outgoing> = Vec::new();
     let mut ticker = tokio::time::interval(TICK);
     // After a stall, run the missed ticks so the room keeps real time.
@@ -195,6 +202,7 @@ async fn run_room(
                     let player = room.join(&mut out);
                     if let Some(player) = player {
                         peers[player] = Some(peer);
+                        silent[player] = 0;
                         seated_once = true;
                         humans.store(room.humans(), Ordering::Relaxed);
                         tracing::info!(room = %code, player, "player joined");
@@ -205,6 +213,7 @@ async fn run_room(
                     if peers[player].is_none() {
                         continue;
                     }
+                    silent[player] = 0;
                     match ClientMessage::decode(&bytes) {
                         Ok(message) => room.receive(player, message, &mut out),
                         Err(error) => {
@@ -222,6 +231,16 @@ async fn run_room(
                 None => break,
             },
             _ = ticker.tick() => {
+                for player in 0..peers.len() {
+                    if peers[player].is_none() {
+                        continue;
+                    }
+                    silent[player] += 1;
+                    if silent[player] > rooms.inner.silence_ticks {
+                        unseat(&mut room, &mut peers, player, &humans);
+                        tracing::info!(room = %code, player, "player timed out");
+                    }
+                }
                 if let Some(finished) = room.tick(&mut out) {
                     tracing::info!(room = %code, scores = ?finished.scores, "match over");
                     rooms.inner.replays.save(finished);
@@ -240,10 +259,14 @@ async fn run_room(
                 // Per-tick data is replaced by the next tick's anyway.
                 Err(mpsc::error::TrySendError::Full(_)) if !message.reliable => {}
                 // A reliable message that cannot be queued means the
-                // transport is gone or hopelessly behind.
-                Err(_) => {
+                // transport is hopelessly behind.
+                Err(mpsc::error::TrySendError::Full(_)) => {
                     tracing::warn!(room = %code, player = message.player, "peer queue stuck");
                     unseat(&mut room, &mut peers, message.player, &humans);
+                }
+                Err(mpsc::error::TrySendError::Closed(_)) => {
+                    unseat(&mut room, &mut peers, message.player, &humans);
+                    tracing::info!(room = %code, player = message.player, "player left");
                 }
             }
         }

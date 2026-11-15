@@ -1,5 +1,7 @@
+use std::io::IsTerminal;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use std::time::Duration;
 
 use fb_host::RoomOptions;
 use fb_server::{Server, ServerConfig};
@@ -32,12 +34,15 @@ fn config_from_env() -> Result<ServerConfig, String> {
         static_dir: env("FB_STATIC").map(PathBuf::from),
         data_dir: env("FB_DATA").map(PathBuf::from),
         room: RoomOptions::default(),
+        silence_limit: Duration::from_secs(5),
     })
 }
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
+        // Colour codes are noise in `docker compose logs` and log files.
+        .with_ansi(std::io::stdout().is_terminal())
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "fb_server=info".into()),
