@@ -1,0 +1,6 @@
+services:
+  test:
+    profiles: [test]
+    build:
+      context: .
+      target: test
