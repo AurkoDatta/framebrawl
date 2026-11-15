@@ -1,0 +1,14 @@
+[package]
+name = "fb-net"
+description = "Wire protocol and simulated links for framebrawl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fb-rollback = { path = "../fb-rollback" }
+fb-sim = { path = "../fb-sim" }
+
+[lints]
+workspace = true
