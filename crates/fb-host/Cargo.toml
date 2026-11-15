@@ -1,0 +1,20 @@
+[package]
+name = "fb-host"
+description = "Match host for framebrawl: authority, bots and replay recording behind one message interface"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fb-bot = { path = "../fb-bot" }
+fb-net = { path = "../fb-net" }
+fb-replay = { path = "../fb-replay" }
+fb-rollback = { path = "../fb-rollback" }
+fb-sim = { path = "../fb-sim" }
+
+[dev-dependencies]
+fb-client = { path = "../fb-client" }
+
+[lints]
+workspace = true
