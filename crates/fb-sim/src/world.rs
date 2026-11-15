@@ -632,6 +632,14 @@ impl World {
         self.props.iter().filter_map(|&h| self.body_view(h))
     }
 
+    /// Adds a point of strain to `player` without any input asking for it.
+    /// This deliberately breaks determinism; it exists so the desync
+    /// machinery can be exercised against the real simulation.
+    pub fn corrupt(&mut self, player: usize) {
+        let strain = &mut self.players[player].strain;
+        *strain = (*strain + 1).min(STRAIN_MAX);
+    }
+
     /// Whether each prop is a ball rather than a crate, in `props` order.
     pub fn prop_is_round(&self) -> impl Iterator<Item = bool> + '_ {
         self.props.iter().map(|&h| {

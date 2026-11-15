@@ -384,4 +384,13 @@ impl<S: Simulation> Session<S> {
     pub fn dump(&self, frame: Frame) -> Option<Vec<Field>> {
         self.state_at(frame).map(Simulation::fields)
     }
+
+    /// Applies `change` to the newest confirmed state and everything
+    /// predicted from it, behind the simulation's back. Nothing in normal
+    /// play calls this: it is how tests and the Netcode Lab cause a desync
+    /// on purpose, to show that it is caught.
+    pub fn tamper(&mut self, change: impl Fn(&mut S)) {
+        self.ring.iter_mut_from(self.confirmed).for_each(&change);
+        change(&mut self.state);
+    }
 }

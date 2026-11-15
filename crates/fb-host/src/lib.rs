@@ -107,6 +107,10 @@ impl Room {
             .count()
     }
 
+    pub fn authority(&self) -> &Authority<World> {
+        &self.authority
+    }
+
     pub fn world(&self) -> &World {
         self.authority.state()
     }

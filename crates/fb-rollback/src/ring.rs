@@ -40,6 +40,15 @@ impl<S: Clone> StateRing<S> {
         }
     }
 
+    /// Every held state for `from` or a later frame.
+    pub fn iter_mut_from(&mut self, from: Frame) -> impl Iterator<Item = &mut S> {
+        self.slots
+            .iter_mut()
+            .flatten()
+            .filter(move |(frame, _)| *frame >= from)
+            .map(|(_, state)| state)
+    }
+
     pub fn clear(&mut self) {
         self.slots.iter_mut().for_each(|slot| *slot = None);
     }

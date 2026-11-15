@@ -109,7 +109,7 @@ impl Client {
         self.seat.as_ref().map(|seat| &seat.config)
     }
 
-    fn session(&self) -> Option<&Session<World>> {
+    pub fn session(&self) -> Option<&Session<World>> {
         self.seat.as_ref()?.session.as_ref()
     }
 
@@ -138,6 +138,17 @@ impl Client {
     /// waiting on the server. Zero until the first echo.
     pub fn rtt_ms(&self) -> u32 {
         self.rtt_x16 / 16
+    }
+
+    /// Corrupts the local simulation so that it no longer matches the
+    /// server's. See [`Session::tamper`].
+    pub fn corrupt(&mut self) {
+        if let Some(seat) = self.seat.as_mut()
+            && let Some(session) = seat.session.as_mut()
+        {
+            let player = usize::from(seat.player);
+            session.tamper(|world| world.corrupt(player));
+        }
     }
 
     pub fn next_event(&mut self) -> Option<Event> {

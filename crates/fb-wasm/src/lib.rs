@@ -1,9 +1,12 @@
-//! Browser bindings: the determinism harness entry points and the network
-//! client the page runs in a worker.
+//! Browser bindings: the determinism harness entry points, the network
+//! client the page runs in a worker, and the Netcode Lab.
 
 mod client;
+mod lab;
+mod view;
 
 pub use client::NetClient;
+pub use lab::Lab;
 
 use fb_sim::soak;
 use fb_sim::{MatchConfig, World};
