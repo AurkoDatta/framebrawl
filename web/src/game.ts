@@ -4,7 +4,6 @@
 import * as input from "./input";
 import type { FromWorker, ToWorker, ViewLayout } from "./protocol";
 import { createFlatStage } from "./render/flat";
-import { createScene } from "./render/scene";
 import type { Stage } from "./render/stage";
 import * as sound from "./sound";
 import { connect, type Transport } from "./transport";
@@ -31,6 +30,8 @@ async function createStage(choice: ViewChoice, onLost: () => void): Promise<Stag
   for (const step of steps.slice(steps.indexOf(choice))) {
     if (step === "flat") break;
     try {
+      // three.js is most of the download; load it apart from the interface.
+      const { createScene } = await import("./render/scene");
       return await createScene(freshCanvas(), { forceWebGL: step === "webgl", onLost });
     } catch (error) {
       console.info(`${step} view unavailable:`, error);

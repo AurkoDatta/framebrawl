@@ -9,7 +9,7 @@
     "build:app": "cargo build --release -p fb-server && npm --prefix ../../web ci && npm --prefix ../../web run wasm && npm --prefix ../../web run build",
     "test:node": "node --test determinism.node.test.mjs",
     "test:browsers": "playwright test",
-    "test": "npm run test:node && npm run test:browsers"
+    "test": "npm run test:node && npm --prefix ../../web test && npm run test:browsers"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",
