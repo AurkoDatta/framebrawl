@@ -94,6 +94,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "fb-client"
+version = "0.1.0"
+dependencies = [
+ "fb-net",
+ "fb-replay",
+ "fb-rollback",
+ "fb-sim",
+]
+
+[[package]]
+name = "fb-host"
+version = "0.1.0"
+dependencies = [
+ "fb-bot",
+ "fb-client",
+ "fb-net",
+ "fb-replay",
+ "fb-rollback",
+ "fb-sim",
+]
+
+[[package]]
 name = "fb-net"
 version = "0.1.0"
 dependencies = [

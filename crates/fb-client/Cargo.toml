@@ -1,0 +1,16 @@
+[package]
+name = "fb-client"
+description = "Client side of the framebrawl protocol: join, sync by replay, predict and roll back"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fb-net = { path = "../fb-net" }
+fb-replay = { path = "../fb-replay" }
+fb-rollback = { path = "../fb-rollback" }
+fb-sim = { path = "../fb-sim" }
+
+[lints]
+workspace = true
