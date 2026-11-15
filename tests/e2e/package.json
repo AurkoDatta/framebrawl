@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run build:wasm && npm run build:expected",
+    "build": "npm run build:wasm && npm run build:expected && npm run build:app",
     "build:wasm": "cargo build --release -p fb-wasm --target wasm32-unknown-unknown && wasm-bindgen --target web --out-dir pkg ../../target/wasm32-unknown-unknown/release/fb_wasm.wasm",
     "build:expected": "cargo run --release -q -p fb-sim --example soak -- 10000 > pkg/native-checksums.txt",
+    "build:app": "cargo build --release -p fb-server && npm --prefix ../../web ci && npm --prefix ../../web run wasm && npm --prefix ../../web run build",
     "test:node": "node --test determinism.node.test.mjs",
     "test:browsers": "playwright test",
     "test": "npm run test:node && npm run test:browsers"
