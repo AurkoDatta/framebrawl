@@ -632,6 +632,16 @@ impl World {
         self.props.iter().filter_map(|&h| self.body_view(h))
     }
 
+    /// Whether each prop is a ball rather than a crate, in `props` order.
+    pub fn prop_is_round(&self) -> impl Iterator<Item = bool> + '_ {
+        self.props.iter().map(|&h| {
+            self.bodies[h]
+                .colliders()
+                .first()
+                .is_some_and(|&c| self.colliders[c].shape().as_ball().is_some())
+        })
+    }
+
     fn body_view(&self, handle: RigidBodyHandle) -> Option<BodyView> {
         self.bodies.get(handle).map(|b| BodyView {
             position: b.translation().to_array(),

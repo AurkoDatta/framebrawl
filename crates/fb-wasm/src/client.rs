@@ -11,7 +11,7 @@ use wasm_bindgen::prelude::*;
 const HEADER: usize = 16;
 const PER_PLAYER: usize = 12;
 const PER_TILE: usize = 8;
-const PER_PROP: usize = 7;
+const PER_PROP: usize = 8;
 
 #[wasm_bindgen]
 pub struct NetClient {
@@ -154,7 +154,8 @@ fn write_world(world: &World, out: &mut Vec<f32>) {
         });
         write_body(body, out);
     }
-    for prop in world.props() {
+    for (prop, round) in world.props().zip(world.prop_is_round()) {
+        out.push(f32::from(u8::from(round)));
         write_body(Some(prop), out);
     }
 }
