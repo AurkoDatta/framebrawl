@@ -1,0 +1,32 @@
+[package]
+name = "fb-server"
+description = "framebrawl game server: HTTP, WebRTC and WebSocket transports around match rooms"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+axum = { version = "0.8", features = ["ws"] }
+fb-host = { path = "../fb-host" }
+fb-net = { path = "../fb-net" }
+fb-replay = { path = "../fb-replay" }
+fb-sim = { path = "../fb-sim" }
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# rust-crypto keeps the build free of cmake and OpenSSL on every platform.
+str0m = { version = "=0.25.0", default-features = false, features = ["rust-crypto"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "fs", "signal"] }
+tower-http = { version = "0.7", features = ["fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+fb-client = { path = "../fb-client" }
+fb-rollback = { path = "../fb-rollback" }
+tokio = { version = "1", features = ["io-util"] }
+tokio-tungstenite = "0.30"
+
+[lints]
+workspace = true
