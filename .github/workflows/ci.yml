@@ -47,15 +47,17 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: tests/e2e/package-lock.json
+          cache-dependency-path: |
+            tests/e2e/package-lock.json
+            web/package-lock.json
       - run: npm ci
         working-directory: tests/e2e
       - run: npx playwright install --with-deps
         working-directory: tests/e2e
-      - name: Build wasm and the native checksum stream
+      - name: Build wasm, the native checksum stream, the server and the page
         run: npm run build
         working-directory: tests/e2e
-      - name: Determinism harness (Node, Chromium, Firefox, WebKit)
+      - name: Determinism harness and browser play tests
         run: npm test
         working-directory: tests/e2e
 
@@ -76,7 +78,7 @@ jobs:
           cmp native-checksums-x86_64/native-checksums.txt native-checksums-arm64/native-checksums.txt
 
   image:
-    name: test image (${{ matrix.arch }})
+    name: images (${{ matrix.arch }})
     strategy:
       fail-fast: false
       matrix:
@@ -100,3 +102,25 @@ jobs:
           cache-from: type=gha,scope=test-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=test-${{ matrix.arch }}
       - run: docker run --rm framebrawl-test
+
+      # The image people actually run, started the way they start it.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: runtime
+          load: true
+          tags: framebrawl-app
+          cache-from: |
+            type=gha,scope=app-${{ matrix.arch }}
+            type=gha,scope=test-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=app-${{ matrix.arch }}
+      - name: docker compose up serves the page and the API
+        run: |
+          docker compose up -d
+          for attempt in $(seq 1 30); do
+            curl -fsS http://localhost:8080/api/health && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8080/api/health | grep -q '"webrtc":true'
+          curl -fsS http://localhost:8080/ | grep -q '<canvas'
+          docker compose down -v
