@@ -1,0 +1,13 @@
+[package]
+name = "fb-rollback"
+description = "Server-authoritative rollback: prediction, resimulation, time sync, desync detection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fb-sim = { path = "../fb-sim" }
+
+[lints]
+workspace = true
