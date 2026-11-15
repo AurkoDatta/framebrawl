@@ -74,3 +74,29 @@ jobs:
       - run: |
           wc -l native-checksums-*/native-checksums.txt
           cmp native-checksums-x86_64/native-checksums.txt native-checksums-arm64/native-checksums.txt
+
+  image:
+    name: test image (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      # Native runners rather than QEMU: compiling Rust under emulation
+      # takes several times longer than the rest of CI put together.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: test
+          load: true
+          tags: framebrawl-test
+          cache-from: type=gha,scope=test-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=test-${{ matrix.arch }}
+      - run: docker run --rm framebrawl-test
