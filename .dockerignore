@@ -11,4 +11,5 @@ tests/e2e/pkg
 tests/e2e/test-results
 tests/e2e/playwright-report
 web/dist
+web/dist-static
 web/src/wasm

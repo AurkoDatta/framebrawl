@@ -632,12 +632,14 @@ impl World {
         self.props.iter().filter_map(|&h| self.body_view(h))
     }
 
-    /// Adds a point of strain to `player` without any input asking for it.
+    /// Bumps `player`'s fall count without anything having happened.
     /// This deliberately breaks determinism; it exists so the desync
-    /// machinery can be exercised against the real simulation.
+    /// machinery can be exercised against the real simulation. The fall
+    /// count is used because nothing resets it, so the damage stays put
+    /// until a resync.
     pub fn corrupt(&mut self, player: usize) {
-        let strain = &mut self.players[player].strain;
-        *strain = (*strain + 1).min(STRAIN_MAX);
+        let falls = &mut self.players[player].falls;
+        *falls = falls.wrapping_add(1);
     }
 
     /// Whether each prop is a ball rather than a crate, in `props` order.

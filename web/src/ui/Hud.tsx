@@ -117,7 +117,7 @@ function Notice({ state }: { state: HudState }) {
   const phase = state.phase;
   if (phase.name === "playing") return null;
   if (phase.name === "connecting") {
-    return <p className="notice">{state.mode === "lab" ? "Starting a match" : "Joining a match"}</p>;
+    return <p className="notice">{state.mode === "online" ? "Joining a match" : "Starting a match"}</p>;
   }
   if (phase.name === "failed") {
     return (
@@ -125,7 +125,8 @@ function Notice({ state }: { state: HudState }) {
         <p>{phase.reason}</p>
         <button type="button" onClick={() => location.reload()}>
           Reconnect
-        </button>
+        </button>{" "}
+        <a href="./?offline">Play offline against bots</a>
       </div>
     );
   }
@@ -177,7 +178,7 @@ export function Hud({ game }: { game: Game | null }) {
       <footer>
         <NetcodePanel state={state} />
         <a className="mode" href={lab ? "./" : "./?lab"}>
-          {lab ? "Play online" : "Open the Netcode Lab"}
+          {lab ? "Back to the match" : "Open the Netcode Lab"}
         </a>
         <p className="keys">
           <kbd>WASD</kbd> run <kbd>Space</kbd> jump <kbd>J</kbd> shove <kbd>K</kbd> dash{" "}

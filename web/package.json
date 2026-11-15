@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"src/**/*.test.ts\"",
     "build": "tsc --noEmit && vite build",
+    "build:static": "tsc --noEmit && vite build --mode static --outDir dist-static",
     "preview": "vite preview"
   },
   "devDependencies": {

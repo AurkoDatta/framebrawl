@@ -139,6 +139,12 @@ header {
   margin-bottom: 6px;
 }
 
+.notice a {
+  pointer-events: auto;
+  margin-left: 12px;
+  color: var(--ink);
+}
+
 .notice button {
   margin-top: 12px;
   padding: 6px 16px;

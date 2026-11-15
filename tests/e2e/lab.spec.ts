@@ -26,7 +26,7 @@ test("a bad link deepens rollbacks and a corrupted client is caught", async ({ p
   expect(await number(page, "desyncs")).toBe(0);
 
   await page.getByRole("button", { name: "Corrupt my game state" }).click();
-  await expect(stat(page, "lab report")).toContainText("player.strain[0], client", {
+  await expect(stat(page, "lab report")).toContainText("player.falls[0], client", {
     timeout: 15_000,
   });
   await expect(stat(page, "desyncs")).toHaveText("1");
@@ -46,4 +46,21 @@ test("changing the input delay restarts the match with that delay", async ({ pag
   await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing");
   await expect.poll(() => number(page, "confirmed")).toBeGreaterThan(60);
   await expect(stat(page, "lab delay")).toHaveText("2");
+});
+
+test("the static build plays against bots with no server at all", async ({ page }) => {
+  // Served from a sub-path by a plain file server, like a project page.
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(new URL(request.url()).pathname));
+  await page.goto("http://127.0.0.1:4173/static/?view=flat");
+  await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing");
+  await expect(stat(page, "transport")).toHaveText("in this tab");
+  await page.keyboard.down("KeyD");
+  await expect.poll(() => number(page, "confirmed")).toBeGreaterThan(120);
+  expect(await number(page, "desyncs")).toBe(0);
+  expect(requests.filter((path) => !path.startsWith("/static/"))).toEqual([]);
+
+  await page.getByRole("link", { name: "Open the Netcode Lab" }).click();
+  await expect(page.getByRole("heading", { name: "Netcode Lab" })).toBeVisible();
+  await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing");
 });

@@ -60,7 +60,7 @@ fn a_corrupted_client_is_caught_explained_and_resynced() {
     lab.corrupt();
     run(&mut lab, 120);
     let report = lab.take_report();
-    assert!(report.contains("player.strain[0]"), "{report}");
+    assert!(report.contains("player.falls[0]"), "{report}");
     assert_eq!(lab.sample()[DESYNCS], 1.0);
 
     // After the resync the client verifies checkpoints again and stays in

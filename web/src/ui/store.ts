@@ -32,6 +32,12 @@ export interface Netcode {
   desyncs: number;
 }
 
+/**
+ * "online" plays on a server. "offline" and "lab" run the server in this
+ * tab; the Lab adds the controls for the simulated connection.
+ */
+export type Mode = "online" | "offline" | "lab";
+
 export interface LabState {
   network: Network;
   /** Frames of input delay, or -1 to let the client choose. */
@@ -47,8 +53,7 @@ export interface LabState {
 }
 
 export interface HudState {
-  /** "lab" runs server and client in this tab; "online" uses a server. */
-  mode: "online" | "lab";
+  mode: Mode;
   lab: LabState;
   phase: Phase;
   me: number;

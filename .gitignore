@@ -1,6 +1,7 @@
 /target
 node_modules
 dist
+dist-static
 /web/src/wasm
 /tests/e2e/pkg
 /tests/e2e/test-results

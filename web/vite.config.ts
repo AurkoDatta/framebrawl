@@ -6,6 +6,9 @@ import { defineConfig } from "vite";
 // `cargo run -p fb-server`.
 export default defineConfig({
   plugins: [react()],
+  // Relative asset paths, so the same build works at the root of the
+  // game server and under a project path on a static host.
+  base: "./",
   server: {
     proxy: {
       "/api": { target: "http://127.0.0.1:8080", ws: true },

@@ -8,7 +8,7 @@ import type { Stage } from "./render/stage";
 import * as sound from "./sound";
 import { connect, type Transport } from "./transport";
 import * as timeline from "./lab/timeline";
-import { hud } from "./ui/store";
+import { cleanNetwork, hud, type Mode } from "./ui/store";
 import { decodeView, type View } from "./view";
 
 type ViewChoice = "webgpu" | "webgl" | "flat";
@@ -50,7 +50,7 @@ export interface Game {
   restart(inputDelay: number): void;
 }
 
-export async function startGame(mode: "online" | "lab"): Promise<Game> {
+export async function startGame(mode: Mode): Promise<Game> {
   const params = new URLSearchParams(location.search);
   hud.set({ mode });
   const requested = params.get("view");
@@ -83,7 +83,8 @@ export async function startGame(mode: "online" | "lab"): Promise<Game> {
     switch (data.type) {
       case "ready":
         layout = data.layout;
-        if (mode === "lab") {
+        if (mode !== "online") {
+          if (mode === "offline") hud.setLab({ network: cleanNetwork, showServer: false });
           const lab = hud.get().lab;
           toWorker({
             type: "start",
@@ -103,7 +104,7 @@ export async function startGame(mode: "online" | "lab"): Promise<Game> {
             webrtcTimeoutMs: 1500,
           });
         } catch {
-          hud.set({ phase: { name: "failed", reason: "The server did not answer." } });
+          hud.set({ phase: { name: "failed", reason: "No server answered at this address." } });
           return;
         }
         hud.setNet({ transport: transport.kind });
