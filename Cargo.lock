@@ -777,6 +777,8 @@ dependencies = [
 name = "fb-wasm"
 version = "0.1.0"
 dependencies = [
+ "fb-client",
+ "fb-rollback",
  "fb-sim",
  "wasm-bindgen",
 ]
