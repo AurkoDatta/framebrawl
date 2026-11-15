@@ -22,7 +22,14 @@ export interface ViewLayout {
 }
 
 export type GameEvent =
-  | { kind: "welcome"; player: number; players: number; grid: number }
+  | {
+      kind: "welcome";
+      player: number;
+      players: number;
+      grid: number;
+      durationFrames: number;
+      scoreLimit: number;
+    }
   | { kind: "synced"; frame: number }
   | { kind: "rollback"; from: number; depth: number }
   | { kind: "desync"; frame: number }

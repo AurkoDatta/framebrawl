@@ -19,7 +19,7 @@ async function number(page: Page, name: string): Promise<number> {
 // A page may have joined a match that is already minutes old, so the
 // count starts from wherever it came in.
 async function playFor(page: Page, frames: number) {
-  await expect(page.locator("#status")).toHaveAttribute("data-state", "playing");
+  await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing");
   await expect(stat(page, "confirmed")).toHaveText(/\d/);
   const target = (await number(page, "confirmed")) + frames;
   await page.keyboard.down("KeyD");
@@ -78,7 +78,7 @@ test("draws the match in 3D", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`${server}/?room=scene`);
-  await expect(page.locator("#status")).toHaveAttribute("data-state", "playing", {
+  await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing", {
     timeout: 20_000,
   });
   await expect(stat(page, "view")).toHaveText(/webgpu|webgl/);

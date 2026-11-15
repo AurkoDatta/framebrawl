@@ -14,10 +14,17 @@ const post = (message: FromWorker, transfer: Transferable[] = []) =>
   (self as unknown as Worker).postMessage(message, transfer);
 
 function decodeEvent(raw: Float64Array): GameEvent | null {
-  const [kind = 0, a = 0, b = 0, c = 0] = raw;
+  const [kind = 0, a = 0, b = 0, c = 0, d = 0, e = 0] = raw;
   switch (kind) {
     case 1:
-      return { kind: "welcome", player: a, players: b, grid: c };
+      return {
+        kind: "welcome",
+        player: a,
+        players: b,
+        grid: c,
+        durationFrames: d,
+        scoreLimit: e,
+      };
     case 2:
       return { kind: "synced", frame: a };
     case 3:

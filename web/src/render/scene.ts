@@ -332,13 +332,15 @@ export async function createScene(canvas: HTMLCanvasElement, options: SceneOptio
       motion.push(view, corrected, nowMs);
     },
     frame(nowMs) {
-      if (lost) return;
+      if (lost) return [];
+      let cues: Cue[] = [];
       const dt = Math.min(0.1, (nowMs - lastFrameAt) / 1000);
       lastFrameAt = nowMs;
       const seconds = nowMs / 1000;
       const sample = motion.sample(nowMs);
       if (sample) {
-        motion.takeCues().forEach(react);
+        cues = motion.takeCues();
+        cues.forEach(react);
         place(sample, seconds, dt);
       }
       for (const ring of rings) {
@@ -355,6 +357,7 @@ export async function createScene(canvas: HTMLCanvasElement, options: SceneOptio
       }
       frameCamera(seconds, dt);
       renderer.render(scene, camera);
+      return cues;
     },
     resize,
   };

@@ -88,6 +88,7 @@ export function createFlatStage(canvas: HTMLCanvasElement): Stage {
     },
     frame() {
       if (latest) draw(context, latest);
+      return [];
     },
     resize,
   };

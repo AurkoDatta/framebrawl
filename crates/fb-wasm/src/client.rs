@@ -68,7 +68,8 @@ impl NetClient {
 
     /// The next event as `[kind, ...numbers]`, or an empty list.
     ///
-    /// 1 welcome `[player, players, grid]`, 2 synced `[frame]`,
+    /// 1 welcome `[player, players, grid, duration, score limit]`,
+    /// 2 synced `[frame]`,
     /// 3 rollback `[from, depth]`, 4 desync `[frame]`,
     /// 5 desync located `[frame]`, 6 match over `[scores...]`.
     pub fn next_event(&mut self) -> Vec<f64> {
@@ -81,6 +82,8 @@ impl NetClient {
                 f64::from(player),
                 f64::from(config.players),
                 f64::from(config.grid),
+                f64::from(config.duration_frames),
+                f64::from(config.score_limit),
             ],
             Event::Synced { frame } => vec![2.0, f64::from(frame)],
             Event::Rollback(rollback) => {
