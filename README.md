@@ -10,10 +10,14 @@ Work in progress. What exists today:
 - `crates/fb-sim`: the simulation core. Fixed 60 Hz tick, rapier3d physics
   built for cross-platform determinism, two-byte inputs, a seeded PCG32, and
   a canonical state checksum.
+- `crates/fb-rollback`: the netcode core. A server-side authority that
+  owns the input stream, and a client session that predicts, rolls back
+  and resimulates, with frame-based clock sync, adaptive input delay and
+  desync detection with bisect. See [docs/netcode.md](docs/netcode.md).
 - `crates/fb-wasm`: WebAssembly bindings, so far only for the harness.
 - `tests/e2e`: the cross-target determinism harness.
 
-The rollback layer, server, renderer and Netcode Lab are next.
+The server, renderer and Netcode Lab are next.
 
 ## Determinism
 
@@ -46,6 +50,29 @@ produce the identical stream. That is the property rollback depends on:
 a restored world has to step exactly like the original, which only holds
 because the snapshot includes rapier's contact caches, broad phase and
 sleep state along with the bodies.
+
+## Netcode
+
+Clients send two-byte inputs; the server decides which frame each lands on
+and broadcasts the result. Clients simulate ahead on predictions and
+resimulate when the server's stream disagrees. Every packet carries all
+unconfirmed history, so loss never needs a retransmit.
+
+Four players on the real simulation for five minutes over a simulated
+link with a 150 ms round trip and 5% loss:
+
+| | per client |
+|---|---|
+| desyncs | 0 |
+| checkpoints verified | 599 of 599 |
+| stalls | 0 |
+| rollbacks | about 4,650 (15 per second) |
+| rollback depth | mean 8.7 frames, max 16 |
+| inputs substituted by the server | 0.4% |
+| input delay chosen | 3 frames |
+
+The same sessions are fuzzed over 300 random link configurations with up
+to 45% loss, heavy jitter and duplication, and must never desync.
 
 ## Rollback cost
 
