@@ -1,6 +1,27 @@
+name: framebrawl
+
 services:
+  app:
+    build:
+      context: .
+      target: runtime
+    init: true
+    ports:
+      - "8080:8080/tcp"
+      - "7600:7600/udp"
+    environment:
+      # Addresses the server offers to browsers for WebRTC, comma separated.
+      # Add this machine's LAN address to play from another device or to get
+      # WebRTC in Firefox, which will not use 127.0.0.1.
+      FB_PUBLIC_IP: ${FB_PUBLIC_IP:-127.0.0.1}
+    volumes:
+      - replays:/data
+
   test:
     profiles: [test]
     build:
       context: .
       target: test
+
+volumes:
+  replays:
