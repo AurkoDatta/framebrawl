@@ -1,9 +1,9 @@
-use rapier3d::prelude::*;
 use crate::canon::{Field, Fnv64, Sink};
 use crate::config::MatchConfig;
 use crate::heading::heading;
 use crate::input::Input;
 use crate::rng::Pcg32;
+use rapier3d::prelude::*;
 
 pub const TICK_RATE: u32 = 60;
 

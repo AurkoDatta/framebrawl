@@ -85,7 +85,11 @@ impl<S: Simulation> Authority<S> {
     }
 
     pub fn receive(&mut self, player: usize, packet: &ClientPacket) {
-        self.acks[player] = self.acks[player].max(packet.ack);
+        // An acknowledgement of frames that do not exist yet is nonsense;
+        // believing it would stop this client's packets for good.
+        if packet.ack <= self.frame {
+            self.acks[player] = self.acks[player].max(packet.ack);
+        }
         for (offset, &input) in packet.inputs.iter().take(MAX_FRAMES_PER_PACKET).enumerate() {
             self.offer(player, packet.first_frame + offset as Frame, input);
         }

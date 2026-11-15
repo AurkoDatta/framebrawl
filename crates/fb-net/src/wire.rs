@@ -24,8 +24,14 @@ pub const BLOB_CHUNK: usize = 12_000;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClientMessage {
-    /// Sent every tick. `ping` is an opaque stamp the server echoes back.
-    Inputs { ping: u16, packet: ClientPacket },
+    /// Sent every tick. `epoch` names the match the frames belong to, so
+    /// packets still in flight when a match ends cannot leak into the
+    /// next. `ping` is an opaque stamp the server echoes back.
+    Inputs {
+        epoch: u8,
+        ping: u16,
+        packet: ClientPacket,
+    },
     /// The client's state disagreed with a checkpoint. Carries its recent
     /// per-frame checksums so the server can find where it began.
     Desync { checksums: Vec<(Frame, u64)> },
@@ -36,11 +42,13 @@ pub enum ServerMessage {
     /// First message on a connection: which player this client is.
     Welcome {
         protocol: u16,
+        epoch: u8,
         player: u8,
         config: MatchConfig,
     },
     /// Sent every tick. `pong` echoes the newest `ping` received.
     Frames {
+        epoch: u8,
         pong: u16,
         packet: ServerPacket,
     },
@@ -126,8 +134,13 @@ impl ClientMessage {
     pub fn encode(&self) -> Vec<u8> {
         let mut w = BitWriter::new();
         match self {
-            ClientMessage::Inputs { ping, packet } => {
+            ClientMessage::Inputs {
+                epoch,
+                ping,
+                packet,
+            } => {
                 w.put(0, KIND_BITS);
+                w.put(*epoch as u64, 8);
                 w.put(*ping as u64, 16);
                 w.put(packet.ack as u64, 32);
                 w.put(packet.first_frame as u64, 32);
@@ -156,6 +169,7 @@ impl ClientMessage {
         let mut r = BitReader::new(bytes);
         match r.get(KIND_BITS)? as u8 {
             0 => {
+                let epoch = r.get(8)? as u8;
                 let ping = r.get(16)? as u16;
                 let ack = r.get(32)? as Frame;
                 let first_frame = r.get(32)? as Frame;
@@ -168,6 +182,7 @@ impl ClientMessage {
                     .map(|_| get_input_delta(&mut r, &mut previous))
                     .collect::<Result<_, _>>()?;
                 Ok(ClientMessage::Inputs {
+                    epoch,
                     ping,
                     packet: ClientPacket {
                         ack,
@@ -195,16 +210,23 @@ impl ServerMessage {
         match self {
             ServerMessage::Welcome {
                 protocol,
+                epoch,
                 player,
                 config,
             } => {
                 w.put(0, KIND_BITS);
                 w.put(*protocol as u64, 16);
+                w.put(*epoch as u64, 8);
                 w.put(*player as u64, 8);
                 w.put_bytes(&config.to_bytes());
             }
-            ServerMessage::Frames { pong, packet } => {
+            ServerMessage::Frames {
+                epoch,
+                pong,
+                packet,
+            } => {
                 w.put(1, KIND_BITS);
+                w.put(*epoch as u64, 8);
                 w.put(*pong as u64, 16);
                 w.put(packet.first_frame as u64, 32);
                 w.put(packet.lead as u8 as u64, 8);
@@ -259,6 +281,7 @@ impl ServerMessage {
         match r.get(KIND_BITS)? as u8 {
             0 => {
                 let protocol = r.get(16)? as u16;
+                let epoch = r.get(8)? as u8;
                 let player = r.get(8)? as u8;
                 let config = MatchConfig::from_bytes(r.rest())
                     .map_err(|_| DecodeError::Invalid("match config"))?;
@@ -267,11 +290,13 @@ impl ServerMessage {
                 }
                 Ok(ServerMessage::Welcome {
                     protocol,
+                    epoch,
                     player,
                     config,
                 })
             }
             1 => {
+                let epoch = r.get(8)? as u8;
                 let pong = r.get(16)? as u16;
                 let first_frame = r.get(32)? as Frame;
                 let lead = r.get(8)? as u8 as i8;
@@ -292,6 +317,7 @@ impl ServerMessage {
                     None
                 };
                 Ok(ServerMessage::Frames {
+                    epoch,
                     pong,
                     packet: ServerPacket {
                         first_frame,
@@ -412,6 +438,7 @@ mod tests {
             })
             .collect();
         ClientMessage::Inputs {
+            epoch: rng.next_u32() as u8,
             ping: rng.next_u32() as u16,
             packet: ClientPacket {
                 ack: rng.next_u32(),
@@ -425,6 +452,7 @@ mod tests {
         match rng.below(10) {
             0 => ServerMessage::Welcome {
                 protocol: PROTOCOL_VERSION,
+                epoch: rng.next_u32() as u8,
                 player: rng.below(players as u32) as u8,
                 config: MatchConfig {
                     seed: rng.next_u32() as u64,
@@ -453,6 +481,7 @@ mod tests {
                     inputs.push(random_input(rng, above));
                 }
                 ServerMessage::Frames {
+                    epoch: rng.next_u32() as u8,
                     pong: rng.next_u32() as u16,
                     packet: ServerPacket {
                         first_frame: rng.next_u32(),
@@ -492,6 +521,7 @@ mod tests {
     fn held_inputs_cost_a_bit_each() {
         let hold = Input::new(Input::MOVE, 40);
         let client = ClientMessage::Inputs {
+            epoch: 1,
             ping: 7,
             packet: ClientPacket {
                 ack: 1000,
@@ -499,9 +529,10 @@ mod tests {
                 inputs: vec![hold; 12],
             },
         };
-        assert_eq!(client.encode().len(), 15);
+        assert_eq!(client.encode().len(), 16);
 
         let server = ServerMessage::Frames {
+            epoch: 1,
             pong: 7,
             packet: ServerPacket {
                 first_frame: 1000,
@@ -510,7 +541,7 @@ mod tests {
                 checkpoint: None,
             },
         };
-        assert_eq!(server.encode(4).len(), 21);
+        assert_eq!(server.encode(4).len(), 22);
     }
 
     #[test]
@@ -541,7 +572,7 @@ mod tests {
     fn a_hostile_count_cannot_force_a_large_allocation() {
         // Kind 0, then all ones: count field says 63 inputs.
         let bytes = [
-            0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         ];
         assert_eq!(
             ClientMessage::decode(&bytes),
