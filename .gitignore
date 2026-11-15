@@ -1,0 +1,9 @@
+/target
+node_modules
+dist
+/web/src/wasm
+/tests/e2e/pkg
+/tests/e2e/test-results
+/tests/e2e/playwright-report
+.DS_Store
+*.log
