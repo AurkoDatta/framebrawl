@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  WASM_BINDGEN_VERSION: 0.2.130
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: test (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --release
+
+      - name: Install wasm-bindgen
+        run: |
+          if ! wasm-bindgen --version 2>/dev/null | grep -q "$WASM_BINDGEN_VERSION"; then
+            cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION" --locked
+          fi
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
+      - run: npm ci
+        working-directory: tests/e2e
+      - run: npx playwright install --with-deps
+        working-directory: tests/e2e
+      - name: Build wasm and the native checksum stream
+        run: npm run build
+        working-directory: tests/e2e
+      - name: Determinism harness (Node, Chromium, Firefox, WebKit)
+        run: npm test
+        working-directory: tests/e2e
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: native-checksums-${{ matrix.arch }}
+          path: tests/e2e/pkg/native-checksums.txt
+          retention-days: 7
+
+  cross-arch:
+    name: x86_64 and arm64 agree
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+      - run: |
+          wc -l native-checksums-*/native-checksums.txt
+          cmp native-checksums-x86_64/native-checksums.txt native-checksums-arm64/native-checksums.txt
