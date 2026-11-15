@@ -93,10 +93,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
+name = "fb-bot"
+version = "0.1.0"
+dependencies = [
+ "fb-sim",
+]
+
+[[package]]
 name = "fb-net"
 version = "0.1.0"
 dependencies = [
  "fb-rollback",
+ "fb-sim",
+]
+
+[[package]]
+name = "fb-replay"
+version = "0.1.0"
+dependencies = [
  "fb-sim",
 ]
 
