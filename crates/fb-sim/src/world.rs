@@ -605,6 +605,23 @@ impl World {
         }
     }
 
+    /// Centre of tile `index` on the ground plane, as `(x, z)`.
+    pub fn tile_center(&self, index: usize) -> (f32, f32) {
+        tile_center(self.config.grid, index)
+    }
+
+    /// The tile under `(x, z)`, whatever its state, or `None` outside the
+    /// arena footprint.
+    pub fn tile_under(&self, x: f32, z: f32) -> Option<usize> {
+        let grid = self.config.grid as f32;
+        let half = grid * TILE_SIZE / 2.0;
+        let (col, row) = ((x + half) / TILE_SIZE, (z + half) / TILE_SIZE);
+        if col < 0.0 || row < 0.0 || col >= grid || row >= grid {
+            return None;
+        }
+        Some(row as usize * self.config.grid as usize + col as usize)
+    }
+
     pub fn tile_count(&self) -> usize {
         self.tiles.len()
     }
