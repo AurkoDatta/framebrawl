@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>framebrawl determinism harness</title>
+<pre id="status">running</pre>
+<script type="module">
+  import init, { RollbackBench, soak_checksums, soak_checksums_with_rewinds } from "/pkg/fb_wasm.js";
+  import { FRAMES, PLAYERS, REWIND_DEPTH, SEED, toHexLines } from "/soak.mjs";
+
+  await init();
+  const straight = toHexLines(soak_checksums(SEED, PLAYERS, FRAMES));
+  const rewound = toHexLines(soak_checksums_with_rewinds(SEED, PLAYERS, FRAMES, REWIND_DEPTH));
+
+  // Browser clocks are coarse (1 ms in Firefox and WebKit), so time many
+  // iterations and divide.
+  const bench = new RollbackBench(SEED, PLAYERS, 400);
+  const perCall = (iterations, run) => {
+    run(iterations >> 3);
+    const start = performance.now();
+    run(iterations);
+    return (performance.now() - start) / iterations;
+  };
+  window.harness = {
+    straight,
+    rewound,
+    rollback8Ms: perCall(1000, (n) => bench.rollback(n, 8)),
+    saveMs: perCall(4000, (n) => bench.save(n)),
+    stepMs: perCall(4000, (n) => bench.step(n)),
+  };
+  document.getElementById("status").textContent = "done";
+</script>
