@@ -28,6 +28,10 @@ export function listen(target: Window, changed: () => void) {
     if (!(event.code in directions) && !(event.code in actions)) {
       return;
     }
+    // Leave the keys alone while a slider or button has them.
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) {
+      return;
+    }
     event.preventDefault();
     if (down) {
       held.add(event.code);

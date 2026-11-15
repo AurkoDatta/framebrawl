@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import type { Game } from "../game";
+import { LabPanel } from "../lab/LabPanel";
 import { seatColours } from "../palette";
 import * as sound from "../sound";
 import { hud, type HudState, type Netcode } from "./store";
@@ -65,6 +67,13 @@ const netRows: [string, keyof Netcode, string][] = [
   ["desyncs", "desyncs", "State checksums that did not"],
 ];
 
+const transportNames = {
+  webrtc: "WebRTC",
+  websocket: "WebSocket",
+  "in this tab": "In this tab",
+  "": "…",
+};
+
 function NetcodePanel({ state }: { state: HudState }) {
   const [open, setOpen] = useState(false);
   const net = state.net;
@@ -85,7 +94,7 @@ function NetcodePanel({ state }: { state: HudState }) {
         onClick={() => setOpen(!open)}
         title="Show or hide netcode details (N)"
       >
-        <span>{net.transport === "webrtc" ? "WebRTC" : net.transport === "websocket" ? "WebSocket" : "…"}</span>
+        <span>{transportNames[net.transport]}</span>
         <span>{net.rttMs} ms</span>
         <span>{net.rollbacksPerSecond} rollbacks/s</span>
         <RollbackTrace depths={state.recentRollbacks} />
@@ -108,7 +117,7 @@ function Notice({ state }: { state: HudState }) {
   const phase = state.phase;
   if (phase.name === "playing") return null;
   if (phase.name === "connecting") {
-    return <p className="notice">Joining a match</p>;
+    return <p className="notice">{state.mode === "lab" ? "Starting a match" : "Joining a match"}</p>;
   }
   if (phase.name === "failed") {
     return (
@@ -134,8 +143,9 @@ function Notice({ state }: { state: HudState }) {
   );
 }
 
-export function Hud() {
+export function Hud({ game }: { game: Game | null }) {
   const state = useHud();
+  const lab = state.mode === "lab";
   useEffect(() => {
     const mute = (event: KeyboardEvent) => {
       if (event.code === "KeyM") {
@@ -149,7 +159,7 @@ export function Hud() {
   }, []);
 
   return (
-    <div className="hud" data-state={state.phase.name}>
+    <div className="hud" data-state={state.phase.name} data-mode={state.mode}>
       <header>
         <ol className="seats">
           {state.seats.map((_, seat) => (
@@ -163,8 +173,12 @@ export function Hud() {
         )}
       </header>
       <Notice state={state} />
+      {lab && game && <LabPanel game={game} state={state} />}
       <footer>
         <NetcodePanel state={state} />
+        <a className="mode" href={lab ? "./" : "./?lab"}>
+          {lab ? "Play online" : "Open the Netcode Lab"}
+        </a>
         <p className="keys">
           <kbd>WASD</kbd> run <kbd>Space</kbd> jump <kbd>J</kbd> shove <kbd>K</kbd> dash{" "}
           <kbd>M</kbd> {state.muted ? "unmute" : "mute"}

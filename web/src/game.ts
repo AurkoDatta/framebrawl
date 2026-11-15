@@ -2,11 +2,12 @@
 // worker, a stage to draw on, and the interface store.
 
 import * as input from "./input";
-import type { FromWorker, ToWorker, ViewLayout } from "./protocol";
+import type { FromWorker, Network, ToWorker, ViewLayout } from "./protocol";
 import { createFlatStage } from "./render/flat";
 import type { Stage } from "./render/stage";
 import * as sound from "./sound";
 import { connect, type Transport } from "./transport";
+import * as timeline from "./lab/timeline";
 import { hud } from "./ui/store";
 import { decodeView, type View } from "./view";
 
@@ -40,8 +41,18 @@ async function createStage(choice: ViewChoice, onLost: () => void): Promise<Stag
   return createFlatStage(freshCanvas());
 }
 
-export async function startGame() {
+export interface Game {
+  /** Lab: change the simulated link while the match runs. */
+  setNetwork(network: Network): void;
+  /** Lab: break the client's state on purpose. */
+  corrupt(): void;
+  /** Lab: start over with a different input delay. */
+  restart(inputDelay: number): void;
+}
+
+export async function startGame(mode: "online" | "lab"): Promise<Game> {
   const params = new URLSearchParams(location.search);
+  hud.set({ mode });
   const requested = params.get("view");
   const first: ViewChoice = requested === "flat" || requested === "webgl" ? requested : "webgpu";
 
@@ -56,7 +67,7 @@ export async function startGame() {
   await useStage(first);
   window.addEventListener("resize", () => stage?.resize());
 
-  const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+  let worker: Worker;
   const toWorker = (message: ToWorker, transfer: Transferable[] = []) =>
     worker.postMessage(message, transfer);
 
@@ -67,11 +78,24 @@ export async function startGame() {
   let desyncs = 0;
   let recentRollbacks: number[] = [];
 
-  worker.onmessage = async (message: MessageEvent<FromWorker>) => {
+  const onMessage = async (message: MessageEvent<FromWorker>) => {
     const data = message.data;
     switch (data.type) {
       case "ready":
         layout = data.layout;
+        if (mode === "lab") {
+          const lab = hud.get().lab;
+          toWorker({
+            type: "start",
+            mode: "lab",
+            seed: Math.floor(Math.random() * 2 ** 31),
+            inputDelay: lab.inputDelay,
+            network: lab.network,
+          });
+          hud.setNet({ transport: "in this tab" });
+          break;
+        }
+        toWorker({ type: "start", mode: "online" });
         try {
           transport = await connect({
             room: params.get("room"),
@@ -112,11 +136,24 @@ export async function startGame() {
         }
         break;
       }
+      case "lab":
+        timeline.record(data.sample);
+        stage?.showServer(hud.get().lab.showServer ? data.truth : null);
+        break;
+      case "report":
+        hud.setLab({ report: data.text });
+        break;
       case "error":
         hud.set({ phase: { name: "failed", reason: data.message } });
         break;
     }
   };
+
+  const launch = () => {
+    worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = onMessage;
+  };
+  launch();
 
   input.listen(window, () => {
     sound.unlock();
@@ -167,4 +204,41 @@ export async function startGame() {
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
+
+  // Link figures that only make sense per second.
+  let lastTotals = timeline.latestTotals();
+  setInterval(() => {
+    const totals = timeline.latestTotals();
+    if (totals && lastTotals && totals.sent >= lastTotals.sent) {
+      const sent = totals.sent - lastTotals.sent;
+      hud.setLab({
+        kilobitsUp: ((totals.bytesUp - lastTotals.bytesUp) * 8) / 1000,
+        kilobitsDown: ((totals.bytesDown - lastTotals.bytesDown) * 8) / 1000,
+        lossPercent: sent > 0 ? ((totals.lost - lastTotals.lost) / sent) * 100 : 0,
+        serverFrame: totals.serverFrame,
+      });
+    }
+    lastTotals = totals;
+  }, 1000);
+
+  return {
+    setNetwork(network) {
+      hud.setLab({ network });
+      toWorker({ type: "network", network });
+    },
+    corrupt() {
+      toWorker({ type: "corrupt" });
+    },
+    restart(inputDelay) {
+      worker.terminate();
+      timeline.reset();
+      latest = null;
+      desyncs = 0;
+      recentRollbacks = [];
+      lastRollbacks = 0;
+      hud.set({ phase: { name: "connecting" } });
+      hud.setLab({ inputDelay, report: "" });
+      launch();
+    },
+  };
 }

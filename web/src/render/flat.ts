@@ -91,5 +91,6 @@ export function createFlatStage(canvas: HTMLCanvasElement): Stage {
       return [];
     },
     resize,
+    showServer() {},
   };
 }

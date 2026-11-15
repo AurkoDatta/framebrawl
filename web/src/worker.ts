@@ -2,8 +2,8 @@
 // rollback never compete for the same frame budget and the match keeps
 // ticking when the tab is in the background.
 
-import init, { NetClient } from "./wasm/fb_wasm.js";
-import type { FromWorker, GameEvent, ToWorker } from "./protocol";
+import init, { Lab, NetClient } from "./wasm/fb_wasm.js";
+import type { FromWorker, GameEvent, Network, ToWorker } from "./protocol";
 
 const TICK_MS = 1000 / 60;
 // Never try to make up more than this many ticks after a long pause; the
@@ -40,16 +40,75 @@ function decodeEvent(raw: Float64Array): GameEvent | null {
   }
 }
 
+// What the worker steps 60 times a second. Online it is a client whose
+// packets travel through the page; in the Lab it is a client and a server
+// together, and nothing leaves the worker.
+interface Runner {
+  receive(bytes: Uint8Array): void;
+  tick(buttons: number, aim: number): void;
+  nextEvent(): Float64Array;
+  view(): Float32Array;
+  afterTick(): void;
+  network(network: Network): void;
+  corrupt(): void;
+}
+
+function onlineRunner(): Runner {
+  const client = new NetClient();
+  return {
+    receive: (bytes) => client.receive(bytes, performance.now() >>> 0),
+    tick(buttons, aim) {
+      const count = client.tick(buttons, aim, performance.now() >>> 0);
+      for (let i = 0; i < count; i++) {
+        const bytes = client.outgoing_bytes(i);
+        post({ type: "send", reliable: client.outgoing_reliable(i), bytes }, [bytes.buffer]);
+      }
+    },
+    nextEvent: () => client.next_event(),
+    view: () => client.view(),
+    afterTick() {},
+    network() {},
+    corrupt() {},
+  };
+}
+
+function labRunner(seed: number, inputDelay: number, network: Network): Runner {
+  const lab = new Lab(BigInt(seed), inputDelay);
+  const setNetwork = (n: Network) =>
+    lab.set_network(
+      Math.round(n.roundTripMs / 2),
+      Math.round(n.jitterMs),
+      Math.round(n.lossPercent * 10),
+      Math.round(n.duplicatePercent * 10),
+    );
+  setNetwork(network);
+  return {
+    receive() {},
+    tick: (buttons, aim) => lab.tick(buttons, aim),
+    nextEvent: () => lab.next_event(),
+    view: () => lab.view(),
+    afterTick() {
+      const truth = lab.truth();
+      const sample = lab.sample();
+      post({ type: "lab", truth, sample }, [truth.buffer, sample.buffer]);
+      const text = lab.take_report();
+      if (text) post({ type: "report", text });
+    },
+    network: setNetwork,
+    corrupt: () => lab.corrupt(),
+  };
+}
+
 async function main() {
   await init();
-  const client = new NetClient();
+  let runner: Runner | null = null;
   let buttons = 0;
   let aim = 0;
   let corrected = false;
 
   const drainEvents = () => {
     for (;;) {
-      const event = decodeEvent(client.next_event());
+      const event = runner && decodeEvent(runner.nextEvent());
       if (!event) {
         return;
       }
@@ -60,30 +119,37 @@ async function main() {
 
   self.onmessage = (message: MessageEvent<ToWorker>) => {
     const data = message.data;
-    if (data.type === "input") {
-      buttons = data.buttons;
-      aim = data.aim;
-      return;
+    switch (data.type) {
+      case "start":
+        runner =
+          data.mode === "lab"
+            ? labRunner(data.seed, data.inputDelay, data.network)
+            : onlineRunner();
+        break;
+      case "input":
+        buttons = data.buttons;
+        aim = data.aim;
+        break;
+      case "network":
+        runner?.network(data.network);
+        break;
+      case "corrupt":
+        runner?.corrupt();
+        break;
+      case "packet":
+        try {
+          runner?.receive(data.bytes);
+        } catch (error) {
+          post({ type: "error", message: String(error) });
+        }
+        drainEvents();
+        break;
     }
-    try {
-      client.receive(data.bytes, performance.now() >>> 0);
-    } catch (error) {
-      post({ type: "error", message: String(error) });
-    }
-    drainEvents();
-  };
-
-  const tick = () => {
-    const count = client.tick(buttons, aim, performance.now() >>> 0);
-    for (let i = 0; i < count; i++) {
-      const bytes = client.outgoing_bytes(i);
-      post({ type: "send", reliable: client.outgoing_reliable(i), bytes }, [bytes.buffer]);
-    }
-    drainEvents();
   };
 
   let next = performance.now();
   setInterval(() => {
+    if (!runner) return;
     const now = performance.now();
     if (now - next > MAX_BACKLOG * TICK_MS) {
       next = now - TICK_MS;
@@ -91,11 +157,13 @@ async function main() {
     let ticked = false;
     while (next <= now) {
       next += TICK_MS;
-      tick();
+      runner.tick(buttons, aim);
+      runner.afterTick();
+      drainEvents();
       ticked = true;
     }
     if (ticked) {
-      const view = client.view();
+      const view = runner.view();
       if (view.length > 0) {
         post({ type: "view", view, corrected }, [view.buffer]);
         corrected = false;

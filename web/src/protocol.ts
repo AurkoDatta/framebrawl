@@ -1,8 +1,22 @@
 // Messages between the page and the simulation worker.
 
+export interface Network {
+  /** Round trip in milliseconds; half is applied in each direction. */
+  roundTripMs: number;
+  jitterMs: number;
+  lossPercent: number;
+  duplicatePercent: number;
+}
+
 export type ToWorker =
+  // The first message decides what the worker runs: a client for a real
+  // server, or the Lab, where server and client share the worker.
+  | { type: "start"; mode: "online" }
+  | { type: "start"; mode: "lab"; seed: number; inputDelay: number; network: Network }
   | { type: "packet"; bytes: Uint8Array }
-  | { type: "input"; buttons: number; aim: number };
+  | { type: "input"; buttons: number; aim: number }
+  | { type: "network"; network: Network }
+  | { type: "corrupt" };
 
 export type FromWorker =
   | { type: "ready"; layout: ViewLayout }
@@ -10,6 +24,10 @@ export type FromWorker =
   // `corrected` is set when a rollback changed the past since the last view,
   // so the renderer knows a jump is a correction and not real motion.
   | { type: "view"; view: Float32Array; corrected: boolean }
+  // Lab only: where the server has each player, the numbers for the
+  // timeline, and the explanation of a desync.
+  | { type: "lab"; truth: Float32Array; sample: Float64Array }
+  | { type: "report"; text: string }
   | { type: "event"; event: GameEvent }
   | { type: "error"; message: string };
 

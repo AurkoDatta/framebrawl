@@ -218,6 +218,16 @@ impl Lab {
     }
 }
 
+/// Small integers as they are; anything else is the bit pattern of a float
+/// and is clearer in hex.
+fn readable(bits: u64) -> String {
+    if bits < 1 << 16 {
+        bits.to_string()
+    } else {
+        format!("{bits:#x}")
+    }
+}
+
 impl Lab {
     fn route(&mut self, out: Vec<Outgoing>) {
         let players = self.room.players();
@@ -264,8 +274,11 @@ impl Lab {
         match field {
             Some(diff) => format!(
                 "Checkpoint {checkpoint} did not match. First wrong frame: {frame}. \
-                 First wrong field: {}[{}], client {:#x}, server {:#x}.",
-                diff.name, diff.index, diff.ours, diff.theirs
+                 First wrong field: {}[{}], client {}, server {}.",
+                diff.name,
+                diff.index,
+                readable(diff.ours),
+                readable(diff.theirs)
             ),
             None => format!("Checkpoint {checkpoint} did not match. First wrong frame: {frame}."),
         }

@@ -170,6 +170,45 @@ export async function createScene(canvas: HTMLCanvasElement, options: SceneOptio
     ring.mesh.visible = true;
   };
 
+  // Outlines of where the server has each player. In the Lab, the gap
+  // between an outline and its solid figure is the prediction error.
+  const ghosts: THREE.Mesh[] = [];
+  const ghostGeometry = new THREE.CapsuleGeometry(PLAYER_RADIUS, PLAYER_HALF_HEIGHT * 2, 2, 10);
+  let truth: Float32Array | null = null;
+  const placeGhosts = (dt: number) => {
+    const count = truth ? (truth.length - 1) / 5 : 0;
+    while (ghosts.length < count) {
+      const ghost = new THREE.Mesh(
+        ghostGeometry,
+        new THREE.MeshBasicMaterial({
+          color: seatColours[ghosts.length] ?? "#ffffff",
+          wireframe: true,
+          transparent: true,
+          opacity: 0.55,
+        }),
+      );
+      ghost.visible = false;
+      ghosts.push(ghost);
+      scene.add(ghost);
+    }
+    ghosts.forEach((ghost, seat) => {
+      const base = 1 + seat * 5;
+      const shown = truth !== null && seat < count && truth[base + 4] !== 0;
+      if (!shown) {
+        ghost.visible = false;
+        return;
+      }
+      position.set(truth![base]!, truth![base + 1]!, truth![base + 2]!);
+      // Ease between server ticks; jump when it just appeared or respawned.
+      if (!ghost.visible || ghost.position.distanceTo(position) > 3) {
+        ghost.position.copy(position);
+      } else {
+        ghost.position.lerp(position, 1 - Math.exp(-dt * 40));
+      }
+      ghost.visible = true;
+    });
+  };
+
   const motion = new Motion();
   const matrix = new THREE.Matrix4();
   const position = new THREE.Vector3();
@@ -355,10 +394,14 @@ export async function createScene(canvas: HTMLCanvasElement, options: SceneOptio
         ring.mesh.scale.setScalar(ring.from + (ring.to - ring.from) * eased);
         ring.material.opacity = (1 - t) * 0.9;
       }
+      placeGhosts(dt);
       frameCamera(seconds, dt);
       renderer.render(scene, camera);
       return cues;
     },
     resize,
+    showServer(next) {
+      truth = next;
+    },
   };
 }

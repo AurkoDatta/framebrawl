@@ -10,4 +10,9 @@ export interface Stage {
   /** Draw one display frame. Returns what happened since the last one. */
   frame(nowMs: number): Cue[];
   resize(): void;
+  /**
+   * Lab only: where the server has each player, as
+   * `[frame, (x, y, z, facing, in play) per player]`, or null to hide.
+   */
+  showServer(truth: Float32Array | null): void;
 }

@@ -1,6 +1,7 @@
 // What the interface shows, kept outside React so the game loop can
 // update it without caring who is listening.
 
+import type { Network } from "../protocol";
 import type { TransportKind } from "../transport";
 
 export type Phase =
@@ -17,7 +18,7 @@ export interface SeatState {
 
 export interface Netcode {
   view: string;
-  transport: TransportKind | "";
+  transport: TransportKind | "in this tab" | "";
   frame: number;
   confirmed: number;
   rttMs: number;
@@ -31,7 +32,24 @@ export interface Netcode {
   desyncs: number;
 }
 
+export interface LabState {
+  network: Network;
+  /** Frames of input delay, or -1 to let the client choose. */
+  inputDelay: number;
+  showServer: boolean;
+  /** The explanation of the most recent desync, if there has been one. */
+  report: string;
+  /** Per-second figures the timeline cannot show as bars. */
+  kilobitsUp: number;
+  kilobitsDown: number;
+  lossPercent: number;
+  serverFrame: number;
+}
+
 export interface HudState {
+  /** "lab" runs server and client in this tab; "online" uses a server. */
+  mode: "online" | "lab";
+  lab: LabState;
   phase: Phase;
   me: number;
   seats: SeatState[];
@@ -43,7 +61,25 @@ export interface HudState {
   muted: boolean;
 }
 
+export const cleanNetwork: Network = {
+  roundTripMs: 0,
+  jitterMs: 0,
+  lossPercent: 0,
+  duplicatePercent: 0,
+};
+
 const initial: HudState = {
+  mode: "online",
+  lab: {
+    network: { roundTripMs: 120, jitterMs: 15, lossPercent: 2, duplicatePercent: 0 },
+    inputDelay: -1,
+    showServer: true,
+    report: "",
+    kilobitsUp: 0,
+    kilobitsDown: 0,
+    lossPercent: 0,
+    serverFrame: 0,
+  },
   phase: { name: "connecting" },
   me: 0,
   seats: [],
@@ -83,5 +119,8 @@ export const hud = {
   },
   setNet(patch: Partial<Netcode>) {
     hud.set({ net: { ...state.net, ...patch } });
+  },
+  setLab(patch: Partial<LabState>) {
+    hud.set({ lab: { ...state.lab, ...patch } });
   },
 };

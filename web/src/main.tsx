@@ -8,5 +8,7 @@ import { createRoot } from "react-dom/client";
 import { startGame } from "./game";
 import { Hud } from "./ui/Hud";
 
-createRoot(document.querySelector("#hud")!).render(<Hud />);
-void startGame();
+const mode = new URLSearchParams(location.search).has("lab") ? "lab" : "online";
+const root = createRoot(document.querySelector("#hud")!);
+root.render(<Hud game={null} />);
+void startGame(mode).then((game) => root.render(<Hud game={game} />));
