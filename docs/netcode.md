@@ -108,17 +108,76 @@ happens. Clients compare checksums at every checkpoint. On a mismatch:
 2. Both dump that frame's canonical field list (the same traversal that
    produces the checksum). The first differing entry names the field, for
    example `player.strain[2]`.
-3. The server sends a full snapshot and the client resumes from it.
+3. The server sends the match history again and the client rebuilds its
+   state from it (see "Joining late and resyncing").
 
 ## Limits
 
 - **Prediction limit.** A client stops simulating when it is 30 frames
   past the last confirmed frame, and waits. It does not guess further.
-- **History.** The server keeps 256 frames of inputs. A client that falls
-  further behind gets a snapshot instead.
-- **Snapshots are large.** A full physics snapshot is around 100 to 250 KB
-  depending on the scene, which is fine for the client's ring but means
-  resync and late join need a reliable, compressed path.
+- **History.** The server keeps 256 frames of inputs for per-tick
+  packets. A client that falls further behind is sent the match history
+  instead.
+- **Snapshots never leave the machine.** A full physics snapshot is around
+  100 to 250 KB depending on the scene. That is fine for the client's
+  ring, and is the reason state is never sent over the network.
+
+## Joining late and resyncing
+
+A client that joins mid-match, falls too far behind or fails a checkpoint
+needs the current state. Serializing the physics engine would mean a
+quarter of a megabyte and a second code path that has to stay bit-exact.
+Instead the server sends what it already records for the replay: the
+match config and every input so far, run-length encoded, plus the
+checkpoints. The client simulates from frame zero, checks itself against
+the checkpoints on the way, and starts predicting from where it ends up.
+
+A full 150 second match is a few kilobytes of history and replays in well
+under a second. The cost grows with match length, which is acceptable
+while matches are short and bounded.
+
+## On the wire
+
+Messages are bit-packed. Each per-tick message carries a frame number, an
+acknowledgement, and the inputs the other side has not confirmed yet, at
+most 32 frames. Inputs are delta-coded against the previous frame, so a
+held direction costs one bit per frame.
+
+| Message | Size with 12 frames in flight |
+|---|---|
+| client to server, own inputs | 16 bytes |
+| server to client, 4 players | 22 bytes |
+
+Every per-tick message carries a one-byte match epoch. Rooms run match
+after match on the same connection, and without it a packet from the last
+frames of one match could be read as the first frames of the next.
+
+The server's reply echoes a 16-bit timestamp from the client, which is
+where the displayed round-trip time comes from. Pacing does not use it.
+
+## Transport
+
+The protocol needs two kinds of delivery, and the transport provides both:
+
+- **Per-tick messages** tolerate loss, because the next one repeats
+  everything unconfirmed. They must not be held up behind a retransmit.
+- **Everything else** (the welcome, match history, desync reports, match
+  results) must arrive, in order.
+
+Over WebRTC these are two data channels on one connection: `frames` is
+unordered with no retransmits, `control` is reliable. The server speaks
+WebRTC itself on a single UDP port shared by every player and is its own
+signalling server: the browser POSTs an SDP offer and the response is the
+answer.
+
+The fallback is one WebSocket on the HTTP port carrying both kinds. It
+works wherever HTTP works, but TCP delivers in order, so one lost packet
+delays every message behind it. The protocol does not change; the
+rollback numbers just get worse on a bad link.
+
+A room is one task that ticks at 60 Hz and owns its match. A seat with no
+player is driven by a bot through the same input path as a person. A
+player who sends nothing for five seconds is treated as gone.
 
 ## What the tests show
 
@@ -134,6 +193,11 @@ jitter, loss and duplication, all seeded:
   and a maximum of 16, input delay settled at 3, and 0.4% of inputs
   substituted by the server.
 - A link blackout longer than the server's input history: the client
-  stalls, receives a snapshot, and catches up.
+  stalls, is sent the state again, and catches up.
 - A deliberately corrupted client: caught at the next checkpoint, bisected
   to the exact frame and field, resynced.
+- The room and the client, exchanging encoded bytes over the simulated
+  link: late join, bots taking seats back, consecutive matches, replays
+  that verify.
+- The real server over its WebSocket with real-time clients, and from
+  Chromium, Firefox and WebKit over WebRTC and WebSocket.
