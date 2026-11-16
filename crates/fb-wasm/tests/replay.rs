@@ -22,7 +22,7 @@ fn bundled_replays_play_back_and_match_every_checkpoint() {
         while player.step() {}
         assert_eq!(player.frame(), player.frames());
         assert_eq!(player.diverged_at(), -1, "{}", path.display());
-        assert!(player.checkpoints() > 30);
+        assert!(player.checkpoints() > 60);
         assert!(!player.view().is_empty());
         played += 1;
     }

@@ -21,7 +21,7 @@ impl Default for MatchConfig {
             grid: 9,
             props: 10,
             duration_frames: 60 * 150,
-            score_limit: 5,
+            score_limit: 8,
         }
     }
 }

@@ -12,14 +12,14 @@ test("a bundled replay plays back and matches every checkpoint", async ({ page }
 
   const matched = await page.locator('[data-stat="replay matched"]').textContent();
   const [done, total] = (matched ?? "").split(" of ").map(Number);
-  expect(total).toBeGreaterThan(30);
+  expect(total).toBeGreaterThan(60);
   expect(done).toBe(total);
   await expect(page.locator('[data-stat="replay verdict"]')).toContainText("matches the recording");
 
   // The second bundled replay can be chosen from the list.
   await page.getByRole("combobox").selectOption({ index: 1 });
   await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing");
-  await expect(page.locator('[data-stat="replay frame"]')).toContainText(/^\d+ of 1926$/);
+  await expect(page.locator('[data-stat="replay frame"]')).toContainText(/^\d+ of 3711$/);
 });
 
 test("a match played on the server shows up as a replay", async ({ page }) => {

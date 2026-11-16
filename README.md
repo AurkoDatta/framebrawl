@@ -73,7 +73,7 @@ code and the same client code as online play; only the wire is replaced.
 
 http://localhost:8080/?replay plays back recorded matches: two that ship
 with the page and any the server has recorded. A replay holds the match
-settings and the inputs, about 3 KB for a match. The browser simulates
+settings and the inputs, about 6 KB for a minute of play. The browser simulates
 the match again from those inputs and checks its state against the
 checksums in the file as it goes, so watching a replay is also a
 determinism test of your machine.
@@ -165,9 +165,9 @@ to 45% loss, heavy jitter and duplication, and must never desync.
 On the wire, a client's per-tick message is 16 bytes and the server's is
 22 with twelve frames of history in flight, about 1 KB/s up and 1.3 KB/s
 down before transport overhead. Physics bodies cost nothing: only inputs
-travel. A complete match through the real server from a browser (2,144
-frames, WebRTC on loopback) ended with 71 of 71 checkpoints verified and
-a replay file of 3,311 bytes.
+travel. A complete match through the real server from a browser over
+WebRTC verifies every checkpoint, and its replay, 57 seconds of play
+between four players, is 5,918 bytes.
 
 ## Rollback cost
 
@@ -214,7 +214,7 @@ After changing the simulation or the bots, record them again:
 
 ```
 cargo run --release -p fb-host --example record -- 3 web/public/replays/bots-3.fbr
-cargo run --release -p fb-host --example record -- 23 web/public/replays/bots-23.fbr
+cargo run --release -p fb-host --example record -- 11 web/public/replays/bots-11.fbr
 ```
 
 The determinism harness and the browser tests:
