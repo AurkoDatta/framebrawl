@@ -16,7 +16,9 @@ test("a bad link deepens rollbacks and a corrupted client is caught", async ({ p
   await page.getByRole("button", { name: "Perfect" }).click();
   await page.keyboard.down("KeyD");
   await expect.poll(() => number(page, "confirmed")).toBeGreaterThan(120);
-  expect(await number(page, "lab rtt")).toBeLessThan(40);
+  // The reading is smoothed, so it takes a moment to come down from the
+  // link the Lab starts with.
+  await expect.poll(() => number(page, "lab rtt"), { timeout: 15_000 }).toBeLessThan(40);
 
   // 150 ms round trip. The measurement includes up to a tick of waiting
   // at each end, so it reads a little higher than the slider.

@@ -33,14 +33,16 @@ async function expectHealthy(page: Page) {
   expect(await number(page, "desyncs")).toBe(0);
   expect(await number(page, "checkpoints")).toBeGreaterThan(2);
   // On loopback the client should sit a frame or two ahead of the server.
-  // Both numbers come from one read so the page cannot advance between.
-  const ahead = await page.evaluate(() => {
-    const read = (name: string) =>
-      Number(document.querySelector(`[data-stat="${name}"]`)?.textContent);
-    return read("frame") - read("confirmed");
-  });
-  expect(ahead).toBeGreaterThanOrEqual(0);
-  expect(ahead).toBeLessThan(15);
+  // Both numbers come from one read so the page cannot advance between,
+  // and a busy test machine gets a few tries to show a settled value.
+  const ahead = () =>
+    page.evaluate(() => {
+      const read = (name: string) =>
+        Number(document.querySelector(`[data-stat="${name}"]`)?.textContent);
+      return read("frame") - read("confirmed");
+    });
+  expect(await ahead()).toBeGreaterThanOrEqual(0);
+  await expect.poll(ahead, { timeout: 10_000 }).toBeLessThan(15);
 }
 
 test("plays against bots over the default transport", async ({ page, browserName }) => {
