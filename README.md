@@ -12,6 +12,12 @@ has each player; the solid figures are where this client predicts them.
 The chart counts, for every tick, the frames being predicted and the
 frames that had to be redone.
 
+**Play it in the browser: https://aurkodatta.com/framebrawl/** (against
+bots, with the [Netcode Lab](https://aurkodatta.com/framebrawl/?lab) and
+[replays](https://aurkodatta.com/framebrawl/?replay); nothing to install).
+That page has no server behind it. For online play between browsers, run
+the server:
+
 ## Run it
 
 With Docker installed and nothing else:
@@ -75,8 +81,8 @@ determinism test of your machine.
 ## Status
 
 The game, the netcode, the Lab and the replay viewer work and are tested
-in Chromium, Firefox and WebKit. Remaining: a performance pass, hosting
-the static build, and a check on Windows.
+in Chromium, Firefox and WebKit. Remaining: a performance pass and a
+check on Windows.
 
 - `crates/fb-sim`: the simulation. Fixed 60 Hz tick, rapier3d physics
   built for cross-platform determinism, two-byte inputs, a seeded PCG32, and
