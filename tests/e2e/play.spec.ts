@@ -20,7 +20,9 @@ async function number(page: Page, name: string): Promise<number> {
 // count starts from wherever it came in.
 async function playFor(page: Page, frames: number) {
   await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing");
-  await expect(stat(page, "confirmed")).toHaveText(/\d/);
+  // The numbers are refreshed ten times a second, so just after joining
+  // they still show their initial zeros.
+  await expect(stat(page, "confirmed")).not.toHaveText("0");
   const target = (await number(page, "confirmed")) + frames;
   await page.keyboard.down("KeyD");
   await expect.poll(() => number(page, "confirmed"), { timeout: 30_000 }).toBeGreaterThan(target);
