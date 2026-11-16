@@ -91,7 +91,8 @@ check on Windows.
   server-side authority that owns the input stream, and a client session
   that predicts, rolls back and resimulates, with frame-based clock sync,
   adaptive input delay and desync detection with bisect. See
-  [docs/netcode.md](docs/netcode.md).
+  [docs/netcode.md](docs/netcode.md), and
+  [docs/architecture.md](docs/architecture.md) for how the pieces fit.
 - `crates/fb-net`: the bit-packed wire format and a simulated bad link.
 - `crates/fb-host` and `crates/fb-client`: the two ends of the protocol
   as plain state machines: a room that runs matches, and the client that
