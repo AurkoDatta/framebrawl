@@ -13,7 +13,13 @@ import type { Mode } from "./ui/store";
 // runs in the tab. Any build can be asked to with ?offline.
 const params = new URLSearchParams(location.search);
 const serverless = import.meta.env.VITE_STATIC === "1" || params.has("offline");
-const mode: Mode = params.has("lab") ? "lab" : serverless ? "offline" : "online";
+const mode: Mode = params.has("replay")
+  ? "replay"
+  : params.has("lab")
+    ? "lab"
+    : serverless
+      ? "offline"
+      : "online";
 const root = createRoot(document.querySelector("#hud")!);
 root.render(<Hud game={null} />);
 void startGame(mode).then((game) => root.render(<Hud game={game} />));

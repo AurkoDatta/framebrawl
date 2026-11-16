@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { Game } from "../game";
 import { LabPanel } from "../lab/LabPanel";
+import { ReplayPanel } from "../replay/ReplayPanel";
 import { seatColours } from "../palette";
 import * as sound from "../sound";
 import { hud, type HudState, type Netcode } from "./store";
@@ -26,7 +27,7 @@ function Seat({ seat, state }: { seat: number; state: HudState }) {
       style={{ "--seat": seatColours[seat] } as React.CSSProperties}
     >
       <span className="seat-score">{score}</span>
-      <span className="seat-name">{seat === state.me ? "You" : `Bot ${seat + 1}`}</span>
+      <span className="seat-name">{seat === state.me ? "You" : `Seat ${seat + 1}`}</span>
       <span className="seat-strain" aria-label={`strain ${strain}`}>
         <span style={{ width: `${share * 100}%` }} data-high={share > 0.6} />
       </span>
@@ -116,6 +117,9 @@ function NetcodePanel({ state }: { state: HudState }) {
 function Notice({ state }: { state: HudState }) {
   const phase = state.phase;
   if (phase.name === "playing") return null;
+  if (phase.name === "ended") {
+    return <p className="notice">End of the replay</p>;
+  }
   if (phase.name === "connecting") {
     return <p className="notice">{state.mode === "online" ? "Joining a match" : "Starting a match"}</p>;
   }
@@ -132,7 +136,7 @@ function Notice({ state }: { state: HudState }) {
   }
   const best = Math.max(...phase.scores);
   const winners = phase.scores.flatMap((score, seat) => (score === best ? [seat] : []));
-  const names = winners.map((seat) => (seat === state.me ? "You" : `Bot ${seat + 1}`));
+  const names = winners.map((seat) => (seat === state.me ? "You" : `Seat ${seat + 1}`));
   const verb = winners.length === 1 && names[0] !== "You" ? "wins" : "win";
   return (
     <div className="notice">
@@ -175,12 +179,15 @@ export function Hud({ game }: { game: Game | null }) {
       </header>
       <Notice state={state} />
       {lab && game && <LabPanel game={game} state={state} />}
+      {state.mode === "replay" && game && <ReplayPanel game={game} state={state} />}
       <footer>
         <NetcodePanel state={state} />
-        <a className="mode" href={lab ? "./" : "./?lab"}>
-          {lab ? "Back to the match" : "Open the Netcode Lab"}
-        </a>
-        <p className="keys">
+        <nav className="modes">
+          {state.mode !== "online" && state.mode !== "offline" && <a href="./">Play</a>}
+          {!lab && <a href="./?lab">Netcode Lab</a>}
+          {state.mode !== "replay" && <a href="./?replay">Replays</a>}
+        </nav>
+        <p className="keys" hidden={state.mode === "replay"}>
           <kbd>WASD</kbd> run <kbd>Space</kbd> jump <kbd>J</kbd> shove <kbd>K</kbd> dash{" "}
           <kbd>M</kbd> {state.muted ? "unmute" : "mute"}
         </p>

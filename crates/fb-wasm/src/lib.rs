@@ -3,10 +3,12 @@
 
 mod client;
 mod lab;
+mod replay;
 mod view;
 
 pub use client::NetClient;
 pub use lab::Lab;
+pub use replay::ReplayPlayer;
 
 use fb_sim::soak;
 use fb_sim::{MatchConfig, World};

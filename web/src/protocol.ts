@@ -13,6 +13,9 @@ export type ToWorker =
   // server, or the Lab, where server and client share the worker.
   | { type: "start"; mode: "online" }
   | { type: "start"; mode: "lab"; seed: number; inputDelay: number; network: Network }
+  | { type: "start"; mode: "replay"; bytes: Uint8Array }
+  // Replay only: frames to play per tick; 0 pauses.
+  | { type: "speed"; speed: number }
   | { type: "packet"; bytes: Uint8Array }
   | { type: "input"; buttons: number; aim: number }
   | { type: "network"; network: Network }
@@ -28,8 +31,18 @@ export type FromWorker =
   // timeline, and the explanation of a desync.
   | { type: "lab"; truth: Float32Array; sample: Float64Array }
   | { type: "report"; text: string }
+  | { type: "replay"; progress: ReplayProgress }
   | { type: "event"; event: GameEvent }
   | { type: "error"; message: string };
+
+export interface ReplayProgress {
+  frame: number;
+  frames: number;
+  checkpoints: number;
+  matched: number;
+  /** First checkpoint frame that did not match, or -1. */
+  divergedAt: number;
+}
 
 /** Float counts for each section of a view, as the wasm side reports them. */
 export interface ViewLayout {
@@ -52,6 +65,7 @@ export type GameEvent =
   | { kind: "rollback"; from: number; depth: number }
   | { kind: "desync"; frame: number }
   | { kind: "desync-located"; frame: number }
-  | { kind: "match-over"; scores: number[] };
+  | { kind: "match-over"; scores: number[] }
+  | { kind: "replay-ended" };
 
 export const Buttons = { move: 1, jump: 2, shove: 4, dash: 8 } as const;

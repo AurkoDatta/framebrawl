@@ -60,7 +60,7 @@ test("the static build plays against bots with no server at all", async ({ page 
   expect(await number(page, "desyncs")).toBe(0);
   expect(requests.filter((path) => !path.startsWith("/static/"))).toEqual([]);
 
-  await page.getByRole("link", { name: "Open the Netcode Lab" }).click();
+  await page.getByRole("link", { name: "Netcode Lab" }).click();
   await expect(page.getByRole("heading", { name: "Netcode Lab" })).toBeVisible();
   await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing");
 });

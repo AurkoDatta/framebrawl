@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 fb-client = { path = "../fb-client" }
 fb-host = { path = "../fb-host" }
 fb-net = { path = "../fb-net" }
+fb-replay = { path = "../fb-replay" }
 fb-rollback = { path = "../fb-rollback" }
 fb-sim = { path = "../fb-sim" }
 # Must match the wasm-bindgen CLI version used to generate the JS glue.

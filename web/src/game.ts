@@ -8,6 +8,7 @@ import type { Stage } from "./render/stage";
 import * as sound from "./sound";
 import { connect, type Transport } from "./transport";
 import * as timeline from "./lab/timeline";
+import { listReplays, loadReplay } from "./replay/library";
 import { cleanNetwork, hud, type Mode } from "./ui/store";
 import { decodeView, type View } from "./view";
 
@@ -48,6 +49,10 @@ export interface Game {
   corrupt(): void;
   /** Lab: start over with a different input delay. */
   restart(inputDelay: number): void;
+  /** Replay: play this one from the start. */
+  openReplay(url: string): void;
+  /** Replay: frames per tick; 0 pauses. */
+  setSpeed(speed: number): void;
 }
 
 export async function startGame(mode: Mode): Promise<Game> {
@@ -83,6 +88,18 @@ export async function startGame(mode: Mode): Promise<Game> {
     switch (data.type) {
       case "ready":
         layout = data.layout;
+        if (mode === "replay") {
+          const url = hud.get().replay.url;
+          try {
+            const bytes = await loadReplay(url);
+            hud.setReplay({ bytes: bytes.length, progress: null });
+            toWorker({ type: "start", mode: "replay", bytes }, [bytes.buffer]);
+            toWorker({ type: "speed", speed: hud.get().replay.speed });
+          } catch (error) {
+            hud.set({ phase: { name: "failed", reason: String(error instanceof Error ? error.message : error) } });
+          }
+          break;
+        }
         if (mode !== "online") {
           if (mode === "offline") hud.setLab({ network: cleanNetwork, showServer: false });
           const lab = hud.get().lab;
@@ -134,12 +151,17 @@ export async function startGame(mode: Mode): Promise<Game> {
           desyncs += 1;
         } else if (event.kind === "match-over") {
           hud.set({ phase: { name: "between", scores: event.scores } });
+        } else if (event.kind === "replay-ended") {
+          hud.set({ phase: { name: "ended" } });
         }
         break;
       }
       case "lab":
         timeline.record(data.sample);
         stage?.showServer(hud.get().lab.showServer ? data.truth : null);
+        break;
+      case "replay":
+        hud.setReplay({ progress: data.progress });
         break;
       case "report":
         hud.setLab({ report: data.text });
@@ -148,6 +170,23 @@ export async function startGame(mode: Mode): Promise<Game> {
         hud.set({ phase: { name: "failed", reason: data.message } });
         break;
     }
+  };
+
+  if (mode === "replay") {
+    const choices = await listReplays(import.meta.env.VITE_STATIC !== "1");
+    const asked = params.get("replay");
+    hud.setReplay({ choices, url: asked || choices[0]?.url || "" });
+  }
+
+  const relaunch = () => {
+    worker.terminate();
+    timeline.reset();
+    latest = null;
+    desyncs = 0;
+    recentRollbacks = [];
+    lastRollbacks = 0;
+    hud.set({ phase: { name: "connecting" } });
+    launch();
   };
 
   const launch = () => {
@@ -231,15 +270,16 @@ export async function startGame(mode: Mode): Promise<Game> {
       toWorker({ type: "corrupt" });
     },
     restart(inputDelay) {
-      worker.terminate();
-      timeline.reset();
-      latest = null;
-      desyncs = 0;
-      recentRollbacks = [];
-      lastRollbacks = 0;
-      hud.set({ phase: { name: "connecting" } });
       hud.setLab({ inputDelay, report: "" });
-      launch();
+      relaunch();
+    },
+    openReplay(url) {
+      hud.setReplay({ url });
+      relaunch();
+    },
+    setSpeed(speed) {
+      hud.setReplay({ speed });
+      toWorker({ type: "speed", speed });
     },
   };
 }

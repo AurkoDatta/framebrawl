@@ -73,6 +73,24 @@ pub fn write_view(client: &Client, out: &mut Vec<f32>) {
     write_world(world, out);
 }
 
+/// A world with nobody predicting it, as when watching a replay. The seat
+/// is one no player has, and every netcode figure is zero except the
+/// count of verified checkpoints.
+pub fn write_spectator_view(world: &World, checkpoints: u32, out: &mut Vec<f32>) {
+    out.clear();
+    let mut header = [0.0; HEADER];
+    header[0] = world.frame() as f32;
+    header[1] = world.frame() as f32;
+    header[2] = 255.0;
+    header[3] = world.player_count() as f32;
+    header[4] = world.tile_count() as f32;
+    header[5] = world.props().count() as f32;
+    header[14] = checkpoints as f32;
+    header[15] = f32::from(u8::from(world.finished()));
+    out.extend(header);
+    write_world(world, out);
+}
+
 fn write_world(world: &World, out: &mut Vec<f32>) {
     for index in 0..world.player_count() {
         let p = world.player(index);

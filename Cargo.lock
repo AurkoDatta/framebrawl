@@ -780,6 +780,7 @@ dependencies = [
  "fb-client",
  "fb-host",
  "fb-net",
+ "fb-replay",
  "fb-rollback",
  "fb-sim",
  "wasm-bindgen",

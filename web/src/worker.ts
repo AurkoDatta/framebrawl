@@ -2,7 +2,7 @@
 // rollback never compete for the same frame budget and the match keeps
 // ticking when the tab is in the background.
 
-import init, { Lab, NetClient } from "./wasm/fb_wasm.js";
+import init, { Lab, NetClient, ReplayPlayer } from "./wasm/fb_wasm.js";
 import type { FromWorker, GameEvent, Network, ToWorker } from "./protocol";
 
 const TICK_MS = 1000 / 60;
@@ -35,6 +35,8 @@ function decodeEvent(raw: Float64Array): GameEvent | null {
       return { kind: "desync-located", frame: a };
     case 6:
       return { kind: "match-over", scores: Array.from(raw.subarray(1)) };
+    case 7:
+      return { kind: "replay-ended" };
     default:
       return null;
   }
@@ -51,6 +53,7 @@ interface Runner {
   afterTick(): void;
   network(network: Network): void;
   corrupt(): void;
+  speed(speed: number): void;
 }
 
 function onlineRunner(): Runner {
@@ -69,6 +72,53 @@ function onlineRunner(): Runner {
     afterTick() {},
     network() {},
     corrupt() {},
+    speed() {},
+  };
+}
+
+// A recorded match, resimulated here from its inputs. There is no client
+// and no server; the events a client would have produced are made up from
+// the recording so the page can treat it like any other match.
+function replayRunner(bytes: Uint8Array): Runner {
+  const player = new ReplayPlayer(bytes);
+  const events: number[][] = [
+    [1, 255, player.players(), 0, player.duration_frames(), player.score_limit()],
+    [2, 0],
+  ];
+  let speed = 1;
+  let ended = false;
+  return {
+    receive() {},
+    tick() {
+      for (let i = 0; i < speed; i++) {
+        if (!player.step()) {
+          if (!ended) {
+            ended = true;
+            events.push([7]);
+          }
+          break;
+        }
+      }
+    },
+    nextEvent: () => new Float64Array(events.shift() ?? []),
+    view: () => player.view(),
+    afterTick() {
+      post({
+        type: "replay",
+        progress: {
+          frame: player.frame(),
+          frames: player.frames(),
+          checkpoints: player.checkpoints(),
+          matched: player.view()[14] ?? 0,
+          divergedAt: player.diverged_at(),
+        },
+      });
+    },
+    network() {},
+    corrupt() {},
+    speed(next) {
+      speed = next;
+    },
   };
 }
 
@@ -96,6 +146,7 @@ function labRunner(seed: number, inputDelay: number, network: Network): Runner {
     },
     network: setNetwork,
     corrupt: () => lab.corrupt(),
+    speed() {},
   };
 }
 
@@ -121,10 +172,19 @@ async function main() {
     const data = message.data;
     switch (data.type) {
       case "start":
-        runner =
-          data.mode === "lab"
-            ? labRunner(data.seed, data.inputDelay, data.network)
-            : onlineRunner();
+        try {
+          runner =
+            data.mode === "lab"
+              ? labRunner(data.seed, data.inputDelay, data.network)
+              : data.mode === "replay"
+                ? replayRunner(data.bytes)
+                : onlineRunner();
+        } catch (error) {
+          post({ type: "error", message: String(error) });
+        }
+        break;
+      case "speed":
+        runner?.speed(data.speed);
         break;
       case "input":
         buttons = data.buttons;

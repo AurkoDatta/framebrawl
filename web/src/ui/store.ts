@@ -1,13 +1,14 @@
 // What the interface shows, kept outside React so the game loop can
 // update it without caring who is listening.
 
-import type { Network } from "../protocol";
+import type { Network, ReplayProgress } from "../protocol";
 import type { TransportKind } from "../transport";
 
 export type Phase =
   | { name: "connecting" }
   | { name: "playing" }
   | { name: "between"; scores: number[] }
+  | { name: "ended" }
   | { name: "failed"; reason: string };
 
 export interface SeatState {
@@ -36,7 +37,20 @@ export interface Netcode {
  * "online" plays on a server. "offline" and "lab" run the server in this
  * tab; the Lab adds the controls for the simulated connection.
  */
-export type Mode = "online" | "offline" | "lab";
+export type Mode = "online" | "offline" | "lab" | "replay";
+
+export interface ReplayChoice {
+  name: string;
+  url: string;
+}
+
+export interface ReplayState {
+  choices: ReplayChoice[];
+  url: string;
+  bytes: number;
+  speed: number;
+  progress: ReplayProgress | null;
+}
 
 export interface LabState {
   network: Network;
@@ -54,6 +68,7 @@ export interface LabState {
 
 export interface HudState {
   mode: Mode;
+  replay: ReplayState;
   lab: LabState;
   phase: Phase;
   me: number;
@@ -75,6 +90,7 @@ export const cleanNetwork: Network = {
 
 const initial: HudState = {
   mode: "online",
+  replay: { choices: [], url: "", bytes: 0, speed: 1, progress: null },
   lab: {
     network: { roundTripMs: 120, jitterMs: 15, lossPercent: 2, duplicatePercent: 0 },
     inputDelay: -1,
@@ -124,6 +140,9 @@ export const hud = {
   },
   setNet(patch: Partial<Netcode>) {
     hud.set({ net: { ...state.net, ...patch } });
+  },
+  setReplay(patch: Partial<ReplayState>) {
+    hud.set({ replay: { ...state.replay, ...patch } });
   },
   setLab(patch: Partial<LabState>) {
     hud.set({ lab: { ...state.lab, ...patch } });
