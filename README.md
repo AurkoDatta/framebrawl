@@ -5,6 +5,13 @@ simulation that runs natively on the server and as WebAssembly in the
 browser, with server-authoritative rollback on top. Two to four players
 shove each other off a floating arena whose tiles crack and fall away.
 
+![The Netcode Lab: the connection is made worse while a match runs, then the client's state is corrupted and the desync is caught](docs/demo.gif)
+
+The recording is the Netcode Lab. The wire outlines are where the server
+has each player; the solid figures are where this client predicts them.
+The chart counts, for every tick, the frames being predicted and the
+frames that had to be redone.
+
 ## Run it
 
 With Docker installed and nothing else:
@@ -41,11 +48,35 @@ browser. The picture is drawn with WebGPU where the browser has it and
 WebGL2 where it does not; `?view=webgl` and `?view=flat` force the simpler
 ones.
 
+## Netcode Lab
+
+http://localhost:8080/?lab runs the server and your client in the same
+browser tab with a simulated connection between them. It is the same room
+code and the same client code as online play; only the wire is replaced.
+
+- Sliders for round trip, jitter, packet loss and duplication, applied
+  while the match runs, with presets from "Perfect" to "Train Wi-Fi".
+- Fixed input delay of 0 to 3 frames, or let the client choose.
+- A timeline of the last eight seconds: frames predicted, frames redone
+  by rollback, ticks spent waiting for the server, packets lost.
+- "Corrupt my game state" changes one number in the client's world. The
+  next checkpoint catches it, the bisect names the first wrong frame and
+  field, and the client is rebuilt from the match history.
+
+## Replays
+
+http://localhost:8080/?replay plays back recorded matches: two that ship
+with the page and any the server has recorded. A replay holds the match
+settings and the inputs, about 3 KB for a match. The browser simulates
+the match again from those inputs and checks its state against the
+checksums in the file as it goes, so watching a replay is also a
+determinism test of your machine.
+
 ## Status
 
-Work in progress. The netcode, the server and the 3D view are in place
-and tested. The Netcode Lab, where you degrade the network and watch
-rollback cope, is next.
+The game, the netcode, the Lab and the replay viewer work and are tested
+in Chromium, Firefox and WebKit. Remaining: a performance pass, hosting
+the static build, and a check on Windows.
 
 - `crates/fb-sim`: the simulation. Fixed 60 Hz tick, rapier3d physics
   built for cross-platform determinism, two-byte inputs, a seeded PCG32, and
@@ -164,12 +195,28 @@ cargo run --release -p fb-server
 cd web && npm ci && npm run wasm && npm run dev
 ```
 
+The page also builds without a server behind it (`?offline` does the same
+in any build): the room runs in the tab, so playing against bots, the Lab
+and the bundled replays need nothing but static files.
+
+```
+cd web && npm run build:static    # output in web/dist-static
+```
+
+The bundled replays only play back on the simulation that recorded them.
+After changing the simulation or the bots, record them again:
+
+```
+cargo run --release -p fb-host --example record -- 3 web/public/replays/bots-3.fbr
+cargo run --release -p fb-host --example record -- 23 web/public/replays/bots-23.fbr
+```
+
 The determinism harness and the browser tests:
 
 ```
 cd tests/e2e
 npm ci && npx playwright install
-npm run build    # wasm, native checksum stream, server, page
+npm run build    # wasm, native checksum stream, server, both page builds
 npm test         # Node, then Chromium, Firefox and WebKit
 ```
 

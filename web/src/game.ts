@@ -58,6 +58,9 @@ export interface Game {
 export async function startGame(mode: Mode): Promise<Game> {
   const params = new URLSearchParams(location.search);
   hud.set({ mode });
+  // The Lab and the replay viewer have a side panel; the stylesheet keeps
+  // the arena clear of it.
+  document.body.dataset.mode = mode;
   const requested = params.get("view");
   const first: ViewChoice = requested === "flat" || requested === "webgl" ? requested : "webgpu";
 

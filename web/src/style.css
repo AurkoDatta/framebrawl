@@ -29,6 +29,11 @@ body {
   display: block;
 }
 
+body[data-mode="lab"] #arena,
+body[data-mode="replay"] #arena {
+  width: calc(100vw - 330px);
+}
+
 .hud {
   position: fixed;
   inset: 0;
@@ -170,6 +175,7 @@ footer {
 }
 
 .net-summary {
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -271,11 +277,24 @@ kbd {
 
 /* Netcode Lab */
 
+.hud[data-mode="lab"] footer,
+.hud[data-mode="replay"] footer {
+  margin-right: 322px;
+}
+
+/* The timeline already shows what the small trace does, and the keys
+   would run under the panel. */
+.hud[data-mode="lab"] .trace,
+.hud[data-mode="lab"] .keys,
+.hud[data-mode="replay"] .keys {
+  display: none;
+}
+
 .lab {
   position: fixed;
   top: 96px;
   right: 22px;
-  bottom: 190px;
+  bottom: 18px;
   width: 300px;
   padding: 14px 16px;
   overflow-y: auto;
@@ -463,6 +482,16 @@ kbd {
 
   .seat-score {
     font-size: 32px;
+  }
+
+  body[data-mode="lab"] #arena,
+  body[data-mode="replay"] #arena {
+    width: 100vw;
+  }
+
+  .hud[data-mode="lab"] footer,
+  .hud[data-mode="replay"] footer {
+    margin-right: 0;
   }
 
   .lab {

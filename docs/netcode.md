@@ -2,7 +2,8 @@
 
 framebrawl uses rollback with an authoritative server. This note covers
 what that means here, what each side does every tick, and the trade-offs.
-The code is in `crates/fb-rollback`.
+The core is in `crates/fb-rollback`; the wire format, the room and the
+client are in `fb-net`, `fb-host` and `fb-client`.
 
 ## The model in one paragraph
 
@@ -178,6 +179,23 @@ rollback numbers just get worse on a bad link.
 A room is one task that ticks at 60 Hz and owns its match. A seat with no
 player is driven by a bot through the same input path as a person. A
 player who sends nothing for five seconds is treated as gone.
+
+## The Lab
+
+The room and the client are state machines with no I/O, so they can run
+anywhere bytes can be passed between them. The Netcode Lab puts one room
+and one client in a browser worker and connects them with the simulated
+link from the test suite: four queues (lossy and reliable, each way) with
+delay, jitter, loss and duplication applied on send. One call advances
+everything by a tick.
+
+Because the Lab holds both ends, it can show things a real client cannot
+see: the server's positions next to the predicted ones, and the bisect
+result the moment a checkpoint fails rather than after the report has
+crossed the link. The corruption it offers bumps the local player's fall
+count in the confirmed state and every state predicted from it. Nothing
+resets that counter, so the difference persists until a resync, and it
+has no effect on play.
 
 ## What the tests show
 
