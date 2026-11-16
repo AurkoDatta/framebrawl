@@ -74,14 +74,17 @@ test("two players share a room", async ({ page, context, browserName }) => {
   expect(health.rooms).toBeGreaterThanOrEqual(1);
 });
 
-test("draws the match in 3D", async ({ page }) => {
+test("draws the match in 3D", async ({ page, browserName }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`${server}/?room=scene`);
   await expect(page.locator(".hud")).toHaveAttribute("data-state", "playing", {
     timeout: 20_000,
   });
-  await expect(stat(page, "view")).toHaveText(/webgpu|webgl/);
+  // Headless Firefox on a machine without a GPU has no WebGL either. There
+  // the page must still come up, on the flat view.
+  const views = browserName === "firefox" ? /webgpu|webgl|flat/ : /webgpu|webgl/;
+  await expect(stat(page, "view")).toHaveText(views);
   const before = await number(page, "confirmed");
   await expect.poll(() => number(page, "confirmed"), { timeout: 30_000 }).toBeGreaterThan(before + 60);
   expect(await number(page, "desyncs")).toBe(0);
