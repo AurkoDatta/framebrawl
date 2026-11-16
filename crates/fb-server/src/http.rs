@@ -5,14 +5,16 @@ use std::path::PathBuf;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
-use axum::http::{StatusCode, header};
+use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use str0m::change::SdpOffer;
+use tower_http::compression::CompressionLayer;
 use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::replays::ReplayStore;
 use crate::rooms::{RoomCommand, Rooms};
@@ -68,7 +70,21 @@ pub fn router(app: App, static_dir: Option<PathBuf>) -> Router {
     match static_dir {
         Some(dir) => {
             let index = ServeFile::new(dir.join("index.html"));
-            router.fallback_service(ServeDir::new(dir).fallback(index))
+            // Built assets carry a content hash in their names, so a
+            // browser may keep them for good.
+            let assets = Router::new()
+                .fallback_service(ServeDir::new(dir.join("assets")))
+                .layer(SetResponseHeaderLayer::if_not_present(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("public, max-age=31536000, immutable"),
+                ));
+            // The wasm module is most of the download and compresses to a
+            // third of its size.
+            let files = Router::new()
+                .nest_service("/assets", assets)
+                .fallback_service(ServeDir::new(dir).fallback(index))
+                .layer(CompressionLayer::new());
+            router.fallback_service(files)
         }
         None => router,
     }
